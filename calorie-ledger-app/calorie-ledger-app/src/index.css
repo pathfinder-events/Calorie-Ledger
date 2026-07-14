@@ -1,0 +1,4 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+input, select, button { font-family: inherit; }
