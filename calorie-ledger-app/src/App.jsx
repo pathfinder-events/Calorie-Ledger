@@ -5,6 +5,7 @@ import { storage } from "./storage.js";
 
 const todayKey = (d = new Date()) => d.toISOString().slice(0, 10);
 const fmt = (n) => Math.round(n).toLocaleString();
+const SHARED_SECRET = import.meta.env.VITE_APP_SHARED_SECRET || "";
 
 const DEFAULT_STATS = {
   sex: "male",
@@ -125,7 +126,7 @@ export default function App() {
 
       const response = await fetch("/api/scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-app-secret": SHARED_SECRET },
         body: JSON.stringify({ image: base64 }),
       });
       if (!response.ok) throw new Error(`Server error ${response.status}`);
@@ -160,7 +161,7 @@ export default function App() {
     try {
       const response = await fetch("/api/scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-app-secret": SHARED_SECRET },
         body: JSON.stringify({ description: descText.trim() }),
       });
       if (!response.ok) throw new Error(`Server error ${response.status}`);
