@@ -3,6 +3,10 @@
 // GEMINI_API_KEY in your Vercel project's environment variables (a plain
 // Google AI Studio key — not one bound to a service account, which is what
 // tripped up chat.ts on Pathfinder).
+//
+// Also checks a shared-secret header (APP_SHARED_SECRET) so this endpoint
+// can't be casually called by anyone who finds the URL — it's not real
+// auth, just a filter against drive-by bot/scraper hits burning your quota.
 
 const MODEL = "gemini-flash-latest";
 
@@ -13,6 +17,15 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
+  }
+
+  const expectedSecret = process.env.APP_SHARED_SECRET;
+  if (expectedSecret) {
+    const provided = req.headers["x-app-secret"];
+    if (provided !== expectedSecret) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
   }
 
   const { image, description } = req.body || {};
