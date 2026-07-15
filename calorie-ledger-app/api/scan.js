@@ -12,7 +12,7 @@
 // the "-latest" alias always points at Google's newest release, which is
 // exactly the model most likely to be capacity-constrained (503s) right
 // after launch. gemini-2.5-flash is older and far less crowded.
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.5-flash";
 
 const JSON_SHAPE =
   '{"food_name": string (short, e.g. "Grilled chicken salad"), "items": string[] (list of components), "portion_note": string (brief portion size assessment), "estimated_calories": number, "confidence": "low"|"medium"|"high"}';
