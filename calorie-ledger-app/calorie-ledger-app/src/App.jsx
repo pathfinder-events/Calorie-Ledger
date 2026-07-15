@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X } from "lucide-react";
 import { storage } from "./storage.js";
 
 const todayKey = (d = new Date()) => d.toISOString().slice(0, 10);
@@ -62,6 +62,10 @@ export default function App() {
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [newWeight, setNewWeight] = useState("");
+  const [entryMode, setEntryMode] = useState(null); // null | "describe" | "manual"
+  const [descText, setDescText] = useState("");
+  const [manualName, setManualName] = useState("");
+  const [manualCals, setManualCals] = useState("");
   const fileInputRef = useRef(null);
   const today = todayKey();
 
@@ -149,6 +153,62 @@ export default function App() {
 
   const removeEntry = (id) => setEntries((prev) => prev.filter((e) => e.id !== id));
 
+  const handleDescribe = async () => {
+    if (!descText.trim()) return;
+    setError("");
+    setAnalyzing(true);
+    try {
+      const response = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: descText.trim() }),
+      });
+      if (!response.ok) throw new Error(`Server error ${response.status}`);
+      const parsed = await response.json();
+
+      setEntries((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          time: new Date().toISOString(),
+          thumb: null,
+          name: parsed.food_name,
+          items: parsed.items || [],
+          note: parsed.portion_note || "",
+          calories: Number(parsed.estimated_calories) || 0,
+          confidence: parsed.confidence || "medium",
+        },
+      ]);
+      setDescText("");
+      setEntryMode(null);
+    } catch (e) {
+      setError("Couldn't estimate that one. Try rephrasing, or enter calories manually.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const addManualEntry = () => {
+    const cals = parseFloat(manualCals);
+    if (!manualName.trim() || !cals || cals <= 0) return;
+    setEntries((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        time: new Date().toISOString(),
+        thumb: null,
+        name: manualName.trim(),
+        items: [],
+        note: "Entered manually",
+        calories: cals,
+        confidence: "manual",
+      },
+    ]);
+    setManualName("");
+    setManualCals("");
+    setEntryMode(null);
+  };
+
   const logWeight = () => {
     const val = parseFloat(newWeight);
     if (!val || val <= 0) return;
@@ -222,6 +282,79 @@ export default function App() {
               </>
             )}
           </button>
+
+          <div style={styles.altRow}>
+            <button
+              style={styles.altLink}
+              onClick={() => setEntryMode((m) => (m === "describe" ? null : "describe"))}
+            >
+              <Type size={13} /> Type it in
+            </button>
+            <span style={styles.altDivider}>&middot;</span>
+            <button
+              style={styles.altLink}
+              onClick={() => setEntryMode((m) => (m === "manual" ? null : "manual"))}
+            >
+              <Edit3 size={13} /> Enter manually
+            </button>
+          </div>
+
+          {entryMode === "describe" && (
+            <div style={styles.inlineForm}>
+              <div style={styles.inlineFormHeader}>
+                <span>Describe what you ate — AI estimates the calories</span>
+                <button style={styles.closeBtn} onClick={() => setEntryMode(null)}>
+                  <X size={14} />
+                </button>
+              </div>
+              <textarea
+                value={descText}
+                onChange={(e) => setDescText(e.target.value)}
+                placeholder="e.g. Two scrambled eggs, a slice of sourdough toast with butter, black coffee"
+                style={styles.textarea}
+                rows={3}
+              />
+              <button style={styles.inlineSubmitBtn} onClick={handleDescribe} disabled={analyzing || !descText.trim()}>
+                {analyzing ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Type size={15} />}
+                Estimate calories
+              </button>
+            </div>
+          )}
+
+          {entryMode === "manual" && (
+            <div style={styles.inlineForm}>
+              <div style={styles.inlineFormHeader}>
+                <span>Enter exact calories — no AI estimate</span>
+                <button style={styles.closeBtn} onClick={() => setEntryMode(null)}>
+                  <X size={14} />
+                </button>
+              </div>
+              <input
+                type="text"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                placeholder="What was it? e.g. Protein shake"
+                style={styles.numInput}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input
+                  type="number"
+                  value={manualCals}
+                  onChange={(e) => setManualCals(e.target.value)}
+                  placeholder="Calories"
+                  style={styles.numInput}
+                />
+                <button
+                  style={styles.inlineSubmitBtnCompact}
+                  onClick={addManualEntry}
+                  disabled={!manualName.trim() || !manualCals}
+                >
+                  <Plus size={15} /> Add
+                </button>
+              </div>
+            </div>
+          )}
+
           {error && <div style={styles.errorText}>{error}</div>}
         </section>
 
@@ -303,7 +436,13 @@ function EntryRow({ entry, onRemove }) {
   const time = new Date(entry.time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return (
     <div style={styles.entryRow}>
-      <img src={entry.thumb} alt="" style={styles.entryThumb} />
+      {entry.thumb ? (
+        <img src={entry.thumb} alt="" style={styles.entryThumb} />
+      ) : (
+        <div style={styles.entryThumbPlaceholder}>
+          {entry.confidence === "manual" ? <Edit3 size={16} /> : <Type size={16} />}
+        </div>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={styles.entryName}>{entry.name}</div>
         <div style={styles.entryNote}>{entry.note || entry.items.join(", ")}</div>
@@ -415,6 +554,16 @@ const styles = {
   scanSection: { marginBottom: 24 },
   scanBtn: { width: "100%", background: colors.gold, color: colors.onGold, border: "none", borderRadius: 12, padding: "14px 16px", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer" },
   errorText: { color: colors.rust, fontSize: 12.5, marginTop: 8 },
+  altRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 10 },
+  altLink: { background: "none", border: "none", color: colors.textMuted, fontSize: 12.5, display: "flex", alignItems: "center", gap: 5, cursor: "pointer", padding: 4 },
+  altDivider: { color: colors.border },
+  inlineForm: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 14, marginTop: 10 },
+  inlineFormHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: colors.textMuted, marginBottom: 8 },
+  closeBtn: { background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: 2 },
+  textarea: { width: "100%", background: colors.cardAlt, border: `1px solid ${colors.border}`, borderRadius: 8, padding: "8px 10px", color: colors.text, fontSize: 14, fontFamily: "'Inter', sans-serif", boxSizing: "border-box", resize: "vertical" },
+  inlineSubmitBtn: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", marginTop: 10, width: "100%" },
+  inlineSubmitBtnCompact: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "0 16px", fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", whiteSpace: "nowrap" },
+  entryThumbPlaceholder: { width: 44, height: 44, borderRadius: 8, flexShrink: 0, border: `1px solid ${colors.border}`, background: colors.cardAlt, display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted },
   sectionLabel: { fontSize: 11, letterSpacing: "0.12em", color: colors.textMuted, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 10, textTransform: "uppercase" },
   emptyState: { color: colors.textMuted, fontSize: 13.5, padding: "20px 0", textAlign: "center" },
   receipt: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 14, padding: "4px 14px", overflow: "hidden" },
