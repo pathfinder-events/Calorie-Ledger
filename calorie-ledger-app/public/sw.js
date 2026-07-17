@@ -1,24 +1,24 @@
-const CACHE = "calorie-ledger-v1";
-const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/icon-maskable-192.png", "/icon-maskable-512.png"];
+// This app doesn't need offline support, and aggressive caching kept
+// serving stale versions after deploys. So this service worker now does
+// almost nothing: it's registered (required for the app to be
+// "installable" as a PWA) but every request just goes straight to the
+// network -- no caching, no stale files, ever.
+const CACHE = "calorie-ledger-v3";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
+  // Clean up every cache from previous versions of this service worker.
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
-// Network-first for API calls, cache-first for the app shell.
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-  if (url.pathname.startsWith("/api/")) return;
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
-  );
+  // Intentionally not calling event.respondWith() -- this lets the
+  // browser handle every request completely normally, with no service
+  // worker caching layer involved at all.
 });
