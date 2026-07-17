@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image } from "lucide-react";
 import { storage } from "./storage.js";
 import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
 
@@ -70,6 +70,7 @@ export default function App() {
   const [manualName, setManualName] = useState("");
   const [manualCals, setManualCals] = useState("");
   const fileInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
   const today = todayKey();
 
   useEffect(() => {
@@ -275,6 +276,14 @@ export default function App() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={(e) => handlePhoto(e.target.files[0])}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
             style={{ display: "none" }}
             onChange={(e) => handlePhoto(e.target.files[0])}
           />
@@ -293,6 +302,10 @@ export default function App() {
           </button>
 
           <div style={styles.altRow}>
+            <button style={styles.altLink} onClick={() => galleryInputRef.current?.click()}>
+              <Image size={13} /> Choose photo
+            </button>
+            <span style={styles.altDivider}>&middot;</span>
             <button
               style={styles.altLink}
               onClick={() => setEntryMode((m) => (m === "describe" ? null : "describe"))}
@@ -641,7 +654,7 @@ const styles = {
   scanSection: { marginBottom: 24 },
   scanBtn: { width: "100%", background: colors.gold, color: colors.onGold, border: "none", borderRadius: 12, padding: "14px 16px", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer" },
   errorText: { color: colors.rust, fontSize: 12.5, marginTop: 8 },
-  altRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 10 },
+  altRow: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 10, flexWrap: "wrap", rowGap: 6 },
   altLink: { background: "none", border: "none", color: colors.textMuted, fontSize: 12.5, display: "flex", alignItems: "center", gap: 5, cursor: "pointer", padding: 4 },
   altDivider: { color: colors.border },
   inlineForm: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 14, marginTop: 10 },
