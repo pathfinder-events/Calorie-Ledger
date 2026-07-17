@@ -384,7 +384,7 @@ export default function App() {
               onChange={(ev) => setNewWeight(ev.target.value)}
               style={styles.weightInput}
             />
-            <button style={styles.logWeightBtn} onClick={logWeight}>
+            <button style={styles.logWeightBtn} onClick={logWeight} disabled={!newWeight}>
               <Plus size={15} /> Log today
             </button>
           </div>
@@ -440,9 +440,7 @@ function EntryRow({ entry, onRemove }) {
       {entry.thumb ? (
         <img src={entry.thumb} alt="" style={styles.entryThumb} />
       ) : (
-        <div style={styles.entryThumbPlaceholder}>
-          {entry.confidence === "manual" ? <Edit3 size={16} /> : <Type size={16} />}
-        </div>
+        <img src="/icon-192.png" alt="" style={styles.entryThumb} />
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={styles.entryName}>{entry.name}</div>
