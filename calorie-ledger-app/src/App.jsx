@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft } from "lucide-react";
 import { storage } from "./storage.js";
+import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
 
 const todayKey = (d = new Date()) => d.toISOString().slice(0, 10);
 const fmt = (n) => Math.round(n).toLocaleString();
@@ -57,6 +58,7 @@ function resizeImage(file, maxDim = 900) {
 export default function App() {
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [view, setView] = useState("today"); // "today" | "history"
   const [entries, setEntries] = useState([]);
   const [weightLog, setWeightLog] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -132,19 +134,18 @@ export default function App() {
       if (!response.ok) throw new Error(`Server error ${response.status}`);
       const parsed = await response.json();
 
-      setEntries((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          time: new Date().toISOString(),
-          thumb: dataUrl,
-          name: parsed.food_name,
-          items: parsed.items || [],
-          note: parsed.portion_note || "",
-          calories: Number(parsed.estimated_calories) || 0,
-          confidence: parsed.confidence || "medium",
-        },
-      ]);
+      const newEntry = {
+        id: crypto.randomUUID(),
+        time: new Date().toISOString(),
+        thumb: dataUrl,
+        name: parsed.food_name,
+        items: parsed.items || [],
+        note: parsed.portion_note || "",
+        calories: Number(parsed.estimated_calories) || 0,
+        confidence: parsed.confidence || "medium",
+      };
+      setEntries((prev) => [...prev, newEntry]);
+      logFoodToSheet(newEntry, today);
     } catch (e) {
       setError("Couldn't read that plate. Try a clearer, well-lit shot.");
     } finally {
@@ -167,19 +168,18 @@ export default function App() {
       if (!response.ok) throw new Error(`Server error ${response.status}`);
       const parsed = await response.json();
 
-      setEntries((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          time: new Date().toISOString(),
-          thumb: null,
-          name: parsed.food_name,
-          items: parsed.items || [],
-          note: parsed.portion_note || "",
-          calories: Number(parsed.estimated_calories) || 0,
-          confidence: parsed.confidence || "medium",
-        },
-      ]);
+      const newEntry = {
+        id: crypto.randomUUID(),
+        time: new Date().toISOString(),
+        thumb: null,
+        name: parsed.food_name,
+        items: parsed.items || [],
+        note: parsed.portion_note || "",
+        calories: Number(parsed.estimated_calories) || 0,
+        confidence: parsed.confidence || "medium",
+      };
+      setEntries((prev) => [...prev, newEntry]);
+      logFoodToSheet(newEntry, today);
       setDescText("");
       setEntryMode(null);
     } catch (e) {
@@ -192,19 +192,18 @@ export default function App() {
   const addManualEntry = () => {
     const cals = parseFloat(manualCals);
     if (!manualName.trim() || !cals || cals <= 0) return;
-    setEntries((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        time: new Date().toISOString(),
-        thumb: null,
-        name: manualName.trim(),
-        items: [],
-        note: "Entered manually",
-        calories: cals,
-        confidence: "manual",
-      },
-    ]);
+    const newEntry = {
+      id: crypto.randomUUID(),
+      time: new Date().toISOString(),
+      thumb: null,
+      name: manualName.trim(),
+      items: [],
+      note: "Entered manually",
+      calories: cals,
+      confidence: "manual",
+    };
+    setEntries((prev) => [...prev, newEntry]);
+    logFoodToSheet(newEntry, today);
     setManualName("");
     setManualCals("");
     setEntryMode(null);
@@ -218,6 +217,7 @@ export default function App() {
       return [...filtered, { date: today, weight: val }].sort((a, b) => a.date.localeCompare(b.date));
     });
     setStats((prev) => ({ ...prev, weightLb: val }));
+    logWeightToSheet(today, val);
     setNewWeight("");
   };
 
@@ -231,11 +231,20 @@ export default function App() {
             <div style={styles.eyebrow}>DAILY LEDGER</div>
             <h1 style={styles.h1}>Calorie Ledger</h1>
           </div>
-          <button style={styles.iconBtn} onClick={() => setStatsOpen((o) => !o)}>
-            <Settings2 size={18} />
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={styles.iconBtn} onClick={() => setView((v) => (v === "history" ? "today" : "history"))}>
+              <History size={18} />
+            </button>
+            <button style={styles.iconBtn} onClick={() => setStatsOpen((o) => !o)}>
+              <Settings2 size={18} />
+            </button>
+          </div>
         </header>
 
+        {view === "history" ? (
+          <HistoryView target={target} onBack={() => setView("today")} />
+        ) : (
+        <>
         {statsOpen && <StatsPanel stats={stats} setStats={setStats} />}
 
         <section style={styles.summaryCard}>
@@ -266,7 +275,6 @@ export default function App() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             style={{ display: "none" }}
             onChange={(e) => handlePhoto(e.target.files[0])}
           />
@@ -405,12 +413,92 @@ export default function App() {
             </div>
           )}
         </section>
+        </>
+        )}
 
         <footer style={styles.footer}>
           Estimates from photo scans are approximate, not medical or clinical guidance. Check with your doctor before changing your diet.
         </footer>
       </div>
     </div>
+  );
+}
+
+function HistoryView({ target, onBack }) {
+  const [days, setDays] = useState(null); // null = loading
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const listResult = await storage.list("food-log:");
+        const keys = (listResult?.keys || []).sort().reverse(); // newest first
+        const rows = [];
+        for (const key of keys) {
+          try {
+            const result = await storage.get(key);
+            if (!result?.value) continue;
+            const entries = JSON.parse(result.value);
+            if (!entries.length) continue;
+            const date = key.replace("food-log:", "");
+            const eaten = entries.reduce((sum, e) => sum + (e.calories || 0), 0);
+            rows.push({
+              date,
+              items: entries.map((e) => e.name).join(", "),
+              eaten,
+              target,
+              overBy: Math.max(0, eaten - target),
+            });
+          } catch (e) {}
+        }
+        setDays(rows);
+      } catch (e) {
+        setDays([]);
+      }
+    })();
+  }, []);
+
+  const formatDate = (isoDate) => {
+    const d = new Date(isoDate + "T00:00:00");
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  };
+
+  return (
+    <section style={{ marginBottom: 24 }}>
+      <div style={styles.historyHeaderRow}>
+        <button style={styles.iconBtn} onClick={onBack}>
+          <ArrowLeft size={18} />
+        </button>
+        <div style={styles.sectionLabel}>History</div>
+      </div>
+
+      {days === null && <div style={styles.emptyState}>Loading past days...</div>}
+      {days !== null && days.length === 0 && (
+        <div style={styles.emptyState}>No past days logged yet.</div>
+      )}
+
+      {days !== null &&
+        days.map((d) => (
+          <div key={d.date} style={styles.historyCard}>
+            <div style={styles.historyDateRow}>
+              <span style={styles.historyDate}>{formatDate(d.date)}</span>
+              {d.overBy > 0 ? (
+                <span style={{ ...styles.historyBadge, color: colors.rust }}>+{fmt(d.overBy)} over</span>
+              ) : (
+                <span style={{ ...styles.historyBadge, color: colors.teal }}>within target</span>
+              )}
+            </div>
+            <div style={styles.historyItems}>{d.items}</div>
+            <div style={styles.historyStatsRow}>
+              <span>
+                Target <strong>{fmt(d.target)}</strong>
+              </span>
+              <span>
+                Eaten <strong>{fmt(d.eaten)}</strong>
+              </span>
+            </div>
+          </div>
+        ))}
+    </section>
   );
 }
 
@@ -580,4 +668,11 @@ const styles = {
   logWeightBtn: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" },
   goalNote: { fontSize: 11.5, color: colors.textMuted, marginTop: 8 },
   footer: { marginTop: 32, fontSize: 11, color: colors.textMuted, textAlign: "center", lineHeight: 1.5 },
+  historyHeaderRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 14 },
+  historyCard: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 14, padding: "14px 16px", marginBottom: 10 },
+  historyDateRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  historyDate: { fontFamily: "'Bitter', serif", fontSize: 15, fontWeight: 700 },
+  historyBadge: { fontSize: 11.5, fontWeight: 600 },
+  historyItems: { fontSize: 12.5, color: colors.textMuted, marginBottom: 10, lineHeight: 1.4 },
+  historyStatsRow: { display: "flex", gap: 18, fontSize: 12.5, color: colors.textMuted },
 };
