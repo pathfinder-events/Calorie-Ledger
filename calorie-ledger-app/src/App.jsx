@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon } from "lucide-react";
 import { storage } from "./storage.js";
 import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
 
@@ -48,11 +48,14 @@ const ACTIVITY_OPTIONS = [
 ];
 
 function resizeImage(file, maxDim = 900) {
+  console.log("[resizeImage] starting, file:", file.name, file.type, file.size, "bytes");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
+      console.log("[resizeImage] FileReader loaded, decoding image...");
       const img = new Image();
       img.onload = () => {
+        console.log("[resizeImage] Image decoded:", img.width, "x", img.height, "-- drawing to canvas");
         let { width, height } = img;
         if (width > height && width > maxDim) {
           height = Math.round((height * maxDim) / width);
@@ -65,12 +68,20 @@ function resizeImage(file, maxDim = 900) {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        console.log("[resizeImage] canvas drawn, exporting JPEG...");
         resolve(canvas.toDataURL("image/jpeg", 0.75));
+        console.log("[resizeImage] done");
       };
-      img.onerror = reject;
+      img.onerror = (err) => {
+        console.error("[resizeImage] Image failed to decode:", err);
+        reject(new Error("Image decode failed"));
+      };
       img.src = e.target.result;
     };
-    reader.onerror = reject;
+    reader.onerror = (err) => {
+      console.error("[resizeImage] FileReader failed:", err);
+      reject(new Error("File read failed"));
+    };
     reader.readAsDataURL(file);
   });
 }
@@ -340,7 +351,7 @@ export default function App() {
 
           <div style={styles.altRow}>
             <button style={styles.altLink} onClick={() => galleryInputRef.current?.click()}>
-              <Image size={13} /> Choose photo
+              <ImageIcon size={13} /> Choose photo
             </button>
             <span style={styles.altDivider}>&middot;</span>
             <button
