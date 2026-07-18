@@ -4,7 +4,15 @@ import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Ed
 import { storage } from "./storage.js";
 import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
 
-const todayKey = (d = new Date()) => d.toISOString().slice(0, 10);
+// Uses local date components (not toISOString, which is UTC and rolls
+// over hours before local midnight in US time zones -- that was causing
+// evening entries to get filed under "tomorrow").
+const todayKey = (d = new Date()) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 const fmt = (n) => Math.round(n).toLocaleString();
 const SHARED_SECRET = import.meta.env.VITE_APP_SHARED_SECRET || "";
 
