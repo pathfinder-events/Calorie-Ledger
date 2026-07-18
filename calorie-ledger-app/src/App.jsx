@@ -16,6 +16,18 @@ const todayKey = (d = new Date()) => {
 const fmt = (n) => Math.round(n).toLocaleString();
 const SHARED_SECRET = import.meta.env.VITE_APP_SHARED_SECRET || "";
 
+// Wraps fetch with a hard timeout -- without this, a stuck/hanging
+// request left the spinner running forever with no way to recover.
+async function fetchWithTimeout(url, options, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const DEFAULT_STATS = {
   sex: "male",
   age: 57,
@@ -135,7 +147,7 @@ export default function App() {
       const dataUrl = await resizeImage(file);
       const base64 = dataUrl.split(",")[1];
 
-      const response = await fetch("/api/scan", {
+      const response = await fetchWithTimeout("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-secret": SHARED_SECRET },
         body: JSON.stringify({ image: base64 }),
@@ -156,7 +168,11 @@ export default function App() {
       setEntries((prev) => [...prev, newEntry]);
       logFoodToSheet(newEntry, today);
     } catch (e) {
-      setError("Couldn't read that plate. Try a clearer, well-lit shot.");
+      setError(
+        e.name === "AbortError"
+          ? "That took too long and timed out. Try again, or use a smaller/clearer photo."
+          : "Couldn't read that plate. Try a clearer, well-lit shot."
+      );
     } finally {
       setAnalyzing(false);
     }
@@ -169,7 +185,7 @@ export default function App() {
     setError("");
     setAnalyzing(true);
     try {
-      const response = await fetch("/api/scan", {
+      const response = await fetchWithTimeout("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-secret": SHARED_SECRET },
         body: JSON.stringify({ description: descText.trim() }),
@@ -192,7 +208,11 @@ export default function App() {
       setDescText("");
       setEntryMode(null);
     } catch (e) {
-      setError("Couldn't estimate that one. Try rephrasing, or enter calories manually.");
+      setError(
+        e.name === "AbortError"
+          ? "That took too long and timed out. Try again."
+          : "Couldn't estimate that one. Try rephrasing, or enter calories manually."
+      );
     } finally {
       setAnalyzing(false);
     }
