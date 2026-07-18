@@ -143,7 +143,12 @@ export default function App() {
     if (!file) return;
     setError("");
     setAnalyzing(true);
-    try {
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("TIMEOUT")), 45000)
+    );
+
+    const work = async () => {
       const dataUrl = await resizeImage(file);
       const base64 = dataUrl.split(",")[1];
 
@@ -167,9 +172,13 @@ export default function App() {
       };
       setEntries((prev) => [...prev, newEntry]);
       logFoodToSheet(newEntry, today);
+    };
+
+    try {
+      await Promise.race([work(), timeoutPromise]);
     } catch (e) {
       setError(
-        e.name === "AbortError"
+        e.name === "AbortError" || e.message === "TIMEOUT"
           ? "That took too long and timed out. Try again, or use a smaller/clearer photo."
           : "Couldn't read that plate. Try a clearer, well-lit shot."
       );
