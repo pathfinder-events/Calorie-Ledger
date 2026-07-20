@@ -1,18 +1,8 @@
 // Vercel serverless function: POST { image: base64Jpeg } OR { description: string }
 // -> food estimate JSON. Keeps the Gemini API key server-side. Set
-// GEMINI_API_KEY in your Vercel project's environment variables (a plain
-// Google AI Studio key — not one bound to a service account, which is what
-// tripped up chat.ts on Pathfinder).
-//
-// Also checks a shared-secret header (APP_SHARED_SECRET) so this endpoint
-// can't be casually called by anyone who finds the URL — it's not real
-// auth, just a filter against drive-by bot/scraper hits burning your quota.
+// GEMINI_API_KEY in your Vercel project's environment variables.
 
-// Pinned to a stable, established model rather than "gemini-flash-latest" --
-// the "-latest" alias always points at Google's newest release, which is
-// exactly the model most likely to be capacity-constrained (503s) right
-// after launch. gemini-2.5-flash is older and far less crowded.
-const MODEL = "gemini-3.5-flash";
+const MODEL = "gemini-2.5-flash";
 
 const JSON_SHAPE =
   '{"food_name": string (short, e.g. "Grilled chicken salad"), "items": string[] (list of components), "portion_note": string (brief portion size assessment), "estimated_calories": number, "confidence": "low"|"medium"|"high"}';
@@ -74,8 +64,6 @@ export default async function handler(req, res) {
   try {
     let geminiRes = await callGemini();
 
-    // Transient capacity/rate errors (503/429) get a couple of quick
-    // retries with backoff before we give up and surface the error.
     let attempt = 0;
     while (!geminiRes.ok && (geminiRes.status === 503 || geminiRes.status === 429) && attempt < 2) {
       attempt++;
