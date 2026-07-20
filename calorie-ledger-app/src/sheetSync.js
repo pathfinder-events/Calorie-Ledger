@@ -35,3 +35,6 @@ export function logFoodToSheet(entry, dateStr) {
 export function logWeightToSheet(dateStr, weight) {
   post("weight", { date: dateStr, weight });
 }
+export function logSleepToSheet(dateStr, hours) {
+  post("sleep", { date: dateStr, hours });
+}
