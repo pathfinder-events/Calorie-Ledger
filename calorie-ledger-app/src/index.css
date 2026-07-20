@@ -25,3 +25,9 @@ html, body {
 input, select, button { 
   font-family: inherit; 
 }
+.recharts-wrapper,
+.recharts-surface,
+svg {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
