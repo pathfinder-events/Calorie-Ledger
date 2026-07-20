@@ -15,45 +15,23 @@ const CONNECTED_KEY = "calorie-ledger:google-fit-connected";
 let tokenClient = null;
 let currentToken = null;
 
-let gisScriptPromise = null;
-
-function loadGisScript() {
-  if (gisScriptPromise) return gisScriptPromise;
-  gisScriptPromise = new Promise((resolve, reject) => {
+function waitForGis() {
+  return new Promise((resolve, reject) => {
     if (window.google?.accounts?.oauth2) {
       resolve();
       return;
     }
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Google sign-in script failed to load"));
-    document.head.appendChild(script);
-  });
-  return gisScriptPromise;
-}
-
-function waitForGis() {
-  return loadGisScript().then(() => {
-    return new Promise((resolve, reject) => {
+    let tries = 0;
+    const interval = setInterval(() => {
+      tries++;
       if (window.google?.accounts?.oauth2) {
+        clearInterval(interval);
         resolve();
-        return;
+      } else if (tries > 50) {
+        clearInterval(interval);
+        reject(new Error("Google sign-in script failed to load"));
       }
-      let tries = 0;
-      const interval = setInterval(() => {
-        tries++;
-        if (window.google?.accounts?.oauth2) {
-          clearInterval(interval);
-          resolve();
-        } else if (tries > 50) {
-          clearInterval(interval);
-          reject(new Error("Google sign-in script failed to load"));
-        }
-      }, 100);
-    });
+    }, 100);
   });
 }
 
