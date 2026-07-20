@@ -321,14 +321,25 @@ export default function App() {
     setNewWeight("");
   };
 
-  const logSleep = () => {
+  const logSleep = async () => {
     const val = parseFloat(newSleep);
     if (!val || val <= 0) return;
-    setSleepLog((prev) => {
-      const filtered = prev.filter((s) => s.date !== today);
-      return [...filtered, { date: today, hours: val }].sort((a, b) => a.date.localeCompare(b.date));
-    });
+
+    const updated = [
+      ...sleepLog.filter((s) => s.date !== today),
+      { date: today, hours: val }
+    ].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Updates state and clears input immediately
+    setSleepLog(updated);
     setNewSleep("");
+
+    // Saves directly to browser storage
+    try {
+      await storage.set("sleep-log", JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save sleep log", e);
+    }
   };
 
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
