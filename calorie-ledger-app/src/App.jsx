@@ -832,8 +832,8 @@ const colors = {
 };
 
 const styles = {
-  page: { minHeight: "100vh", background: colors.bg, fontFamily: "'Inter', system-ui, sans-serif", color: colors.text, padding: "24px 16px 60px" },
-  wrap: { maxWidth: 480, margin: "0 auto" },
+ page: { minHeight: "100vh", width: "100%", boxSizing: "border-box", overflowX: "hidden", background: colors.bg, fontFamily: "'Inter', system-ui, sans-serif", color: colors.text, padding: "24px 16px 60px" },
+  wrap: { maxWidth: 480, width: "100%", boxSizing: "border-box", margin: "0 auto" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
   eyebrow: { fontSize: 11, letterSpacing: "0.14em", color: colors.gold, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 4 },
   h1: { fontFamily: "'Bitter', serif", fontSize: 28, fontWeight: 700, margin: 0, letterSpacing: "-0.01em" },
