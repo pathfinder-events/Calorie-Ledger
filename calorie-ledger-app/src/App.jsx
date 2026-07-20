@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink, Moon } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink } from "lucide-react";
 import { storage } from "./storage.js";
-import { logFoodToSheet, logWeightToSheet, logSleepToSheet } from "./sheetSync.js";
+import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
 import { requestFitAccess, wasFitPreviouslyConnected, disconnectFit, fetchTodayFitData } from "./googleFit.js";
 
-// Uses local date components (not toISOString, which is UTC and rolls
-// over hours before local midnight in US time zones -- that was causing
-// evening entries to get filed under "tomorrow").
+// Uses local date components
 const todayKey = (d = new Date()) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -17,8 +15,6 @@ const todayKey = (d = new Date()) => {
 const fmt = (n) => Math.round(n).toLocaleString();
 const SHARED_SECRET = import.meta.env.VITE_APP_SHARED_SECRET || "";
 
-// Wraps fetch with a hard timeout -- without this, a stuck/hanging
-// request left the spinner running forever with no way to recover.
 async function fetchWithTimeout(url, options, timeoutMs = 45000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -49,14 +45,11 @@ const ACTIVITY_OPTIONS = [
 ];
 
 function resizeImage(file, maxDim = 900) {
-  console.log("[resizeImage] starting, file:", file.name, file.type, file.size, "bytes");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      console.log("[resizeImage] FileReader loaded, decoding image...");
       const img = new Image();
       img.onload = () => {
-        console.log("[resizeImage] Image decoded:", img.width, "x", img.height, "-- drawing to canvas");
         let { width, height } = img;
         if (width > height && width > maxDim) {
           height = Math.round((height * maxDim) / width);
@@ -69,20 +62,12 @@ function resizeImage(file, maxDim = 900) {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        console.log("[resizeImage] canvas drawn, exporting JPEG...");
         resolve(canvas.toDataURL("image/jpeg", 0.75));
-        console.log("[resizeImage] done");
       };
-      img.onerror = (err) => {
-        console.error("[resizeImage] Image failed to decode:", err);
-        reject(new Error("Image decode failed"));
-      };
+      img.onerror = (err) => reject(new Error("Image decode failed"));
       img.src = e.target.result;
     };
-    reader.onerror = (err) => {
-      console.error("[resizeImage] FileReader failed:", err);
-      reject(new Error("File read failed"));
-    };
+    reader.onerror = (err) => reject(new Error("File read failed"));
     reader.readAsDataURL(file);
   });
 }
@@ -97,12 +82,10 @@ export default function App() {
   const [fitError, setFitError] = useState("");
   const [entries, setEntries] = useState([]);
   const [weightLog, setWeightLog] = useState([]);
-  const [sleepLog, setSleepLog] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [newWeight, setNewWeight] = useState("");
-  const [newSleep, setNewSleep] = useState("");
   const [entryMode, setEntryMode] = useState(null); // null | "describe" | "manual"
   const [descText, setDescText] = useState("");
   const [manualName, setManualName] = useState("");
@@ -125,10 +108,6 @@ export default function App() {
         const w = await storage.get("weight-log");
         if (w?.value) setWeightLog(JSON.parse(w.value));
       } catch (e) {}
-      try {
-        const sl = await storage.get("sleep-log");
-        if (sl?.value) setSleepLog(JSON.parse(sl.value));
-      } catch (e) {}
       setLoaded(true);
     })();
   }, []);
@@ -138,10 +117,6 @@ export default function App() {
     storage.set("user-stats", JSON.stringify(stats)).catch(() => {});
   }, [stats, loaded]);
 
-  // On load, if the person connected Google Fit before, quietly try to
-  // reconnect without showing a popup. If that fails (session expired,
-  // permission revoked, etc.), fitConnected just stays false and they
-  // can tap "Connect" again.
   useEffect(() => {
     if (!wasFitPreviouslyConnected()) return;
     (async () => {
@@ -152,8 +127,6 @@ export default function App() {
         setFitData(data);
         setFitConnected(true);
       } catch (e) {
-        // Silent failure is fine here -- just means they'll need to
-        // tap Connect again manually.
       } finally {
         setFitLoading(false);
       }
@@ -183,7 +156,6 @@ export default function App() {
       const data = await fetchTodayFitData(token);
       setFitData(data);
     } catch (e) {
-      // Keep showing the last known data rather than clearing it.
     } finally {
       setFitLoading(false);
     }
@@ -204,11 +176,6 @@ export default function App() {
     if (!loaded) return;
     storage.set("weight-log", JSON.stringify(weightLog)).catch(() => {});
   }, [weightLog, loaded]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    storage.set("sleep-log", JSON.stringify(sleepLog)).catch(() => {});
-  }, [sleepLog, loaded]);
 
   const weightKg = stats.weightLb * 0.453592;
   const heightCm = stats.heightIn * 2.54;
@@ -343,20 +310,7 @@ export default function App() {
     setNewWeight("");
   };
 
-  const logSleep = () => {
-    const val = parseFloat(newSleep);
-    if (!val || val <= 0) return;
-    setSleepLog((prev) => {
-      const filtered = prev.filter((s) => s.date !== today);
-      return [...filtered, { date: today, hours: val }].sort((a, b) => a.date.localeCompare(b.date));
-    });
-    logSleepToSheet(today, val);
-    setNewSleep("");
-  };
-
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
-  const sleepChartData = sleepLog.map((s) => ({ date: s.date.slice(5), hours: s.hours }));
-  const lastNightSleep = sleepLog.find((s) => s.date === today)?.hours ?? null;
 
   return (
     <div style={styles.page}>
@@ -582,7 +536,7 @@ export default function App() {
             Goal: {stats.goalLowLb}&ndash;{stats.goalHighLb} lb &middot; currently {stats.weightLb} lb
           </div>
           {chartData.length > 1 && (
-            <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden", position: "relative", minWidth: 0 }}>
+            <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden" }}>
               <ResponsiveContainer width="99%" height="100%">
                 <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
@@ -590,36 +544,6 @@ export default function App() {
                   <YAxis domain={["dataMin - 3", "dataMax + 3"]} tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
                   <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.gridLine}`, borderRadius: 8, fontSize: 12, color: colors.text }} />
                   <Line type="monotone" dataKey="weight" stroke={colors.gold} strokeWidth={2} dot={{ fill: colors.gold, r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </section>
-
-        <section style={styles.weightSection}>
-          <div style={styles.sectionLabel}>Sleep</div>
-          <div style={styles.weightInputRow}>
-            <input
-              type="number"
-              step="0.25"
-              placeholder={lastNightSleep ? `${lastNightSleep}h logged` : "hours slept"}
-              value={newSleep}
-              onChange={(ev) => setNewSleep(ev.target.value)}
-              style={styles.weightInput}
-            />
-            <button style={styles.logWeightBtn} onClick={logSleep} disabled={!newSleep}>
-              <Moon size={15} /> Log today
-            </button>
-          </div>
-          {sleepChartData.length > 1 && (
-            <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden", position: "relative" }}>
-  <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                <LineChart data={sleepChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={{ stroke: colors.gridLine }} tickLine={false} />
-                  <YAxis domain={[0, "dataMax + 1"]} tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
-                  <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.gridLine}`, borderRadius: 8, fontSize: 12, color: colors.text }} />
-                  <Line type="monotone" dataKey="hours" stroke={colors.teal} strokeWidth={2} dot={{ fill: colors.teal, r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -637,13 +561,13 @@ export default function App() {
 }
 
 function HistoryView({ target, onBack }) {
-  const [days, setDays] = useState(null); // null = loading
+  const [days, setDays] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
         const listResult = await storage.list("food-log:");
-        const keys = (listResult?.keys || []).sort().reverse(); // newest first
+        const keys = (listResult?.keys || []).sort().reverse();
         const rows = [];
         for (const key of keys) {
           try {
@@ -832,8 +756,8 @@ const colors = {
 };
 
 const styles = {
- page: { minHeight: "100vh", width: "100%", boxSizing: "border-box", overflowX: "hidden", background: colors.bg, fontFamily: "'Inter', system-ui, sans-serif", color: colors.text, padding: "24px 16px 60px" },
-  wrap: { maxWidth: 480, width: "100%", boxSizing: "border-box", margin: "0 auto" },
+  page: { minHeight: "100vh", background: colors.bg, fontFamily: "'Inter', system-ui, sans-serif", color: colors.text, padding: "24px 16px 60px" },
+  wrap: { maxWidth: 480, margin: "0 auto" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
   eyebrow: { fontSize: 11, letterSpacing: "0.14em", color: colors.gold, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 4 },
   h1: { fontFamily: "'Bitter', serif", fontSize: 28, fontWeight: 700, margin: 0, letterSpacing: "-0.01em" },
@@ -879,8 +803,8 @@ const styles = {
   trashBtn: { background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: 4 },
   weightSection: { marginTop: 26 },
   weightInputRow: { display: "flex", gap: 8 },
-weightInput: { flex: 1, minWidth: 0, background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: "10px 12px", color: colors.text, fontSize: 14, boxSizing: "border-box" },
-logWeightBtn: { flexShrink: 0, background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" },
+  weightInput: { flex: 1, background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: "10px 12px", color: colors.text, fontSize: 14, boxSizing: "border-box" },
+  logWeightBtn: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" },
   goalNote: { fontSize: 11.5, color: colors.textMuted, marginTop: 8 },
   footer: { marginTop: 32, fontSize: 11, color: colors.textMuted, textAlign: "center", lineHeight: 1.5 },
   historyHeaderRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 14 },
