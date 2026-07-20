@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon } from "lucide-react";
 import { storage } from "./storage.js";
 import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
-import { requestFitAccess, wasFitPreviouslyConnected, disconnectFit, fetchTodayFitData } from "./googleFit.js";
 
 // Uses local date components (not toISOString, which is UTC and rolls
 // over hours before local midnight in US time zones -- that was causing
@@ -91,10 +90,6 @@ export default function App() {
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [statsOpen, setStatsOpen] = useState(false);
   const [view, setView] = useState("today"); // "today" | "history"
-  const [fitConnected, setFitConnected] = useState(false);
-  const [fitData, setFitData] = useState(null); // { calories, steps }
-  const [fitLoading, setFitLoading] = useState(false);
-  const [fitError, setFitError] = useState("");
   const [entries, setEntries] = useState([]);
   const [weightLog, setWeightLog] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -131,63 +126,6 @@ export default function App() {
     if (!loaded) return;
     storage.set("user-stats", JSON.stringify(stats)).catch(() => {});
   }, [stats, loaded]);
-
-  // On load, if the person connected Google Fit before, quietly try to
-  // reconnect without showing a popup. If that fails (session expired,
-  // permission revoked, etc.), fitConnected just stays false and they
-  // can tap "Connect" again.
-  useEffect(() => {
-    if (!wasFitPreviouslyConnected()) return;
-    (async () => {
-      try {
-        setFitLoading(true);
-        const token = await requestFitAccess(true);
-        const data = await fetchTodayFitData(token);
-        setFitData(data);
-        setFitConnected(true);
-      } catch (e) {
-        // Silent failure is fine here -- just means they'll need to
-        // tap Connect again manually.
-      } finally {
-        setFitLoading(false);
-      }
-    })();
-  }, []);
-
-  const connectFit = async () => {
-    setFitError("");
-    setFitLoading(true);
-    try {
-      const token = await requestFitAccess(false);
-      const data = await fetchTodayFitData(token);
-      setFitData(data);
-      setFitConnected(true);
-    } catch (e) {
-      setFitError("Couldn't connect to Google Fit. Try again.");
-    } finally {
-      setFitLoading(false);
-    }
-  };
-
-  const refreshFitData = async () => {
-    if (!fitConnected) return;
-    setFitLoading(true);
-    try {
-      const token = await requestFitAccess(true);
-      const data = await fetchTodayFitData(token);
-      setFitData(data);
-    } catch (e) {
-      // Keep showing the last known data rather than clearing it.
-    } finally {
-      setFitLoading(false);
-    }
-  };
-
-  const handleDisconnectFit = () => {
-    disconnectFit();
-    setFitConnected(false);
-    setFitData(null);
-  };
 
   useEffect(() => {
     if (!loaded) return;
@@ -379,41 +317,6 @@ export default function App() {
               ~{weeklyLoss.toFixed(1)} lb/wk pace
             </span>
           </div>
-
-          <div style={styles.fitRow}>
-            {fitConnected ? (
-              <>
-                <span style={styles.metaText}>
-                  <Footprints size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
-                  {fitData ? (
-                    <>
-                      {fmt(fitData.calories)} cal &middot; {fmt(fitData.steps)} steps today (Google Fit)
-                    </>
-                  ) : (
-                    "Loading Google Fit data..."
-                  )}
-                </span>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button style={styles.fitIconBtn} onClick={refreshFitData} disabled={fitLoading}>
-                    <RefreshCw size={12} style={fitLoading ? { animation: "spin 1s linear infinite" } : {}} />
-                  </button>
-                  <button style={styles.fitIconBtn} onClick={handleDisconnectFit}>
-                    <Unlink size={12} />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <button style={styles.fitConnectBtn} onClick={connectFit} disabled={fitLoading}>
-                {fitLoading ? (
-                  <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
-                ) : (
-                  <Link2 size={13} />
-                )}
-                Connect Google Fit for real burn data
-              </button>
-            )}
-          </div>
-          {fitError && <div style={styles.errorText}>{fitError}</div>}
         </section>
 
         <section style={styles.scanSection}>
@@ -795,9 +698,6 @@ const styles = {
   progressTrack: { height: 8, background: colors.cardAlt, borderRadius: 999, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 999, transition: "width 0.4s ease" },
   metaRow: { display: "flex", justifyContent: "space-between", marginTop: 12 },
-  fitRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${colors.border}` },
-  fitConnectBtn: { background: "none", border: `1px dashed ${colors.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 11.5, color: colors.textMuted, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", width: "100%", justifyContent: "center" },
-  fitIconBtn: { background: colors.cardAlt, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 5, color: colors.textMuted, cursor: "pointer", display: "flex" },
   metaText: { fontSize: 11.5, color: colors.textMuted },
   scanSection: { marginBottom: 24 },
   scanBtn: { width: "100%", background: colors.gold, color: colors.onGold, border: "none", borderRadius: 12, padding: "14px 16px", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer" },
