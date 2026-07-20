@@ -582,8 +582,8 @@ export default function App() {
             Goal: {stats.goalLowLb}&ndash;{stats.goalHighLb} lb &middot; currently {stats.weightLb} lb
           </div>
           {chartData.length > 1 && (
-            <div style={{ width: "100%", height: 160, marginTop: 14 }}>
-              <ResponsiveContainer>
+            <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden" }}>
+              <ResponsiveContainer width="99%" height="100%">
                 <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={{ stroke: colors.gridLine }} tickLine={false} />
@@ -612,8 +612,8 @@ export default function App() {
             </button>
           </div>
           {sleepChartData.length > 1 && (
-            <div style={{ width: "100%", height: 160, marginTop: 14 }}>
-              <ResponsiveContainer>
+            <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden" }}>
+              <ResponsiveContainer width="99%" height="100%">
                 <LineChart data={sleepChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={{ stroke: colors.gridLine }} tickLine={false} />
