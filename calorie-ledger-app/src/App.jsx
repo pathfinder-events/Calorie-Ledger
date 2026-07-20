@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink, Moon } from "lucide-react";
 import { storage } from "./storage.js";
-import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
+import { logFoodToSheet, logWeightToSheet, logSleepToSheet } from "./sheetSync.js";
 import { requestFitAccess, wasFitPreviouslyConnected, disconnectFit, fetchTodayFitData } from "./googleFit.js";
 
 // Uses local date components (not toISOString, which is UTC and rolls
@@ -97,10 +97,12 @@ export default function App() {
   const [fitError, setFitError] = useState("");
   const [entries, setEntries] = useState([]);
   const [weightLog, setWeightLog] = useState([]);
+  const [sleepLog, setSleepLog] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [newWeight, setNewWeight] = useState("");
+  const [newSleep, setNewSleep] = useState("");
   const [entryMode, setEntryMode] = useState(null); // null | "describe" | "manual"
   const [descText, setDescText] = useState("");
   const [manualName, setManualName] = useState("");
@@ -122,6 +124,10 @@ export default function App() {
       try {
         const w = await storage.get("weight-log");
         if (w?.value) setWeightLog(JSON.parse(w.value));
+      } catch (e) {}
+      try {
+        const sl = await storage.get("sleep-log");
+        if (sl?.value) setSleepLog(JSON.parse(sl.value));
       } catch (e) {}
       setLoaded(true);
     })();
@@ -198,6 +204,11 @@ export default function App() {
     if (!loaded) return;
     storage.set("weight-log", JSON.stringify(weightLog)).catch(() => {});
   }, [weightLog, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    storage.set("sleep-log", JSON.stringify(sleepLog)).catch(() => {});
+  }, [sleepLog, loaded]);
 
   const weightKg = stats.weightLb * 0.453592;
   const heightCm = stats.heightIn * 2.54;
@@ -332,7 +343,20 @@ export default function App() {
     setNewWeight("");
   };
 
+  const logSleep = () => {
+    const val = parseFloat(newSleep);
+    if (!val || val <= 0) return;
+    setSleepLog((prev) => {
+      const filtered = prev.filter((s) => s.date !== today);
+      return [...filtered, { date: today, hours: val }].sort((a, b) => a.date.localeCompare(b.date));
+    });
+    logSleepToSheet(today, val);
+    setNewSleep("");
+  };
+
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
+  const sleepChartData = sleepLog.map((s) => ({ date: s.date.slice(5), hours: s.hours }));
+  const lastNightSleep = sleepLog.find((s) => s.date === today)?.hours ?? null;
 
   return (
     <div style={styles.page}>
@@ -566,6 +590,36 @@ export default function App() {
                   <YAxis domain={["dataMin - 3", "dataMax + 3"]} tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
                   <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.gridLine}`, borderRadius: 8, fontSize: 12, color: colors.text }} />
                   <Line type="monotone" dataKey="weight" stroke={colors.gold} strokeWidth={2} dot={{ fill: colors.gold, r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+
+        <section style={styles.weightSection}>
+          <div style={styles.sectionLabel}>Sleep</div>
+          <div style={styles.weightInputRow}>
+            <input
+              type="number"
+              step="0.25"
+              placeholder={lastNightSleep ? `${lastNightSleep}h logged` : "hours slept"}
+              value={newSleep}
+              onChange={(ev) => setNewSleep(ev.target.value)}
+              style={styles.weightInput}
+            />
+            <button style={styles.logWeightBtn} onClick={logSleep} disabled={!newSleep}>
+              <Moon size={15} /> Log today
+            </button>
+          </div>
+          {sleepChartData.length > 1 && (
+            <div style={{ width: "100%", height: 160, marginTop: 14 }}>
+              <ResponsiveContainer>
+                <LineChart data={sleepChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={{ stroke: colors.gridLine }} tickLine={false} />
+                  <YAxis domain={[0, "dataMax + 1"]} tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
+                  <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.gridLine}`, borderRadius: 8, fontSize: 12, color: colors.text }} />
+                  <Line type="monotone" dataKey="hours" stroke={colors.teal} strokeWidth={2} dot={{ fill: colors.teal, r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
