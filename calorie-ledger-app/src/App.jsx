@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon } from "lucide-react";
+import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink, Moon } from "lucide-react";
 import { storage } from "./storage.js";
 import { logFoodToSheet, logWeightToSheet } from "./sheetSync.js";
+import { requestFitAccess, wasFitPreviouslyConnected, disconnectFit, fetchTodayFitData } from "./googleFit.js";
 
-// Uses local date components (not toISOString, which is UTC and rolls
-// over hours before local midnight in US time zones -- that was causing
-// evening entries to get filed under "tomorrow").
+// Uses local date components
 const todayKey = (d = new Date()) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -16,8 +15,6 @@ const todayKey = (d = new Date()) => {
 const fmt = (n) => Math.round(n).toLocaleString();
 const SHARED_SECRET = import.meta.env.VITE_APP_SHARED_SECRET || "";
 
-// Wraps fetch with a hard timeout -- without this, a stuck/hanging
-// request left the spinner running forever with no way to recover.
 async function fetchWithTimeout(url, options, timeoutMs = 45000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -48,14 +45,11 @@ const ACTIVITY_OPTIONS = [
 ];
 
 function resizeImage(file, maxDim = 900) {
-  console.log("[resizeImage] starting, file:", file.name, file.type, file.size, "bytes");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      console.log("[resizeImage] FileReader loaded, decoding image...");
       const img = new Image();
       img.onload = () => {
-        console.log("[resizeImage] Image decoded:", img.width, "x", img.height, "-- drawing to canvas");
         let { width, height } = img;
         if (width > height && width > maxDim) {
           height = Math.round((height * maxDim) / width);
@@ -68,20 +62,12 @@ function resizeImage(file, maxDim = 900) {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        console.log("[resizeImage] canvas drawn, exporting JPEG...");
         resolve(canvas.toDataURL("image/jpeg", 0.75));
-        console.log("[resizeImage] done");
       };
-      img.onerror = (err) => {
-        console.error("[resizeImage] Image failed to decode:", err);
-        reject(new Error("Image decode failed"));
-      };
+      img.onerror = (err) => reject(new Error("Image decode failed"));
       img.src = e.target.result;
     };
-    reader.onerror = (err) => {
-      console.error("[resizeImage] FileReader failed:", err);
-      reject(new Error("File read failed"));
-    };
+    reader.onerror = (err) => reject(new Error("File read failed"));
     reader.readAsDataURL(file);
   });
 }
@@ -90,12 +76,18 @@ export default function App() {
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [statsOpen, setStatsOpen] = useState(false);
   const [view, setView] = useState("today"); // "today" | "history"
+  const [fitConnected, setFitConnected] = useState(false);
+  const [fitData, setFitData] = useState(null); // { calories, steps }
+  const [fitLoading, setFitLoading] = useState(false);
+  const [fitError, setFitError] = useState("");
   const [entries, setEntries] = useState([]);
   const [weightLog, setWeightLog] = useState([]);
+  const [sleepLog, setSleepLog] = useState([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [newWeight, setNewWeight] = useState("");
+  const [newSleep, setNewSleep] = useState("");
   const [entryMode, setEntryMode] = useState(null); // null | "describe" | "manual"
   const [descText, setDescText] = useState("");
   const [manualName, setManualName] = useState("");
@@ -118,6 +110,10 @@ export default function App() {
         const w = await storage.get("weight-log");
         if (w?.value) setWeightLog(JSON.parse(w.value));
       } catch (e) {}
+      try {
+        const sl = await storage.get("sleep-log");
+        if (sl?.value) setSleepLog(JSON.parse(sl.value));
+      } catch (e) {}
       setLoaded(true);
     })();
   }, []);
@@ -128,6 +124,56 @@ export default function App() {
   }, [stats, loaded]);
 
   useEffect(() => {
+    if (!wasFitPreviouslyConnected()) return;
+    (async () => {
+      try {
+        setFitLoading(true);
+        const token = await requestFitAccess(true);
+        const data = await fetchTodayFitData(token);
+        setFitData(data);
+        setFitConnected(true);
+      } catch (e) {
+      } finally {
+        setFitLoading(false);
+      }
+    })();
+  }, []);
+
+  const connectFit = async () => {
+    setFitError("");
+    setFitLoading(true);
+    try {
+      const token = await requestFitAccess(false);
+      const data = await fetchTodayFitData(token);
+      setFitData(data);
+      setFitConnected(true);
+    } catch (e) {
+      setFitError("Couldn't connect to Google Fit. Try again.");
+    } finally {
+      setFitLoading(false);
+    }
+  };
+
+  const refreshFitData = async () => {
+    if (!fitConnected) return;
+    setFitLoading(true);
+    try {
+      const token = await requestFitAccess(true);
+      const data = await fetchTodayFitData(token);
+      setFitData(data);
+    } catch (e) {
+    } finally {
+      setFitLoading(false);
+    }
+  };
+
+  const handleDisconnectFit = () => {
+    disconnectFit();
+    setFitConnected(false);
+    setFitData(null);
+  };
+
+  useEffect(() => {
     if (!loaded) return;
     storage.set(`food-log:${today}`, JSON.stringify(entries)).catch(() => {});
   }, [entries, loaded]);
@@ -136,6 +182,11 @@ export default function App() {
     if (!loaded) return;
     storage.set("weight-log", JSON.stringify(weightLog)).catch(() => {});
   }, [weightLog, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    storage.set("sleep-log", JSON.stringify(sleepLog)).catch(() => {});
+  }, [sleepLog, loaded]);
 
   const weightKg = stats.weightLb * 0.453592;
   const heightCm = stats.heightIn * 2.54;
@@ -270,7 +321,18 @@ export default function App() {
     setNewWeight("");
   };
 
+  const logSleep = () => {
+    const val = parseFloat(newSleep);
+    if (!val || val <= 0) return;
+    setSleepLog((prev) => {
+      const filtered = prev.filter((s) => s.date !== today);
+      return [...filtered, { date: today, hours: val }].sort((a, b) => a.date.localeCompare(b.date));
+    });
+    setNewSleep("");
+  };
+
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
+  const todaySleep = sleepLog.find((s) => s.date === today)?.hours;
 
   return (
     <div style={styles.page}>
@@ -317,6 +379,41 @@ export default function App() {
               ~{weeklyLoss.toFixed(1)} lb/wk pace
             </span>
           </div>
+
+          <div style={styles.fitRow}>
+            {fitConnected ? (
+              <>
+                <span style={styles.metaText}>
+                  <Footprints size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
+                  {fitData ? (
+                    <>
+                      {fmt(fitData.calories)} cal &middot; {fmt(fitData.steps)} steps today (Google Fit)
+                    </>
+                  ) : (
+                    "Loading Google Fit data..."
+                  )}
+                </span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button style={styles.fitIconBtn} onClick={refreshFitData} disabled={fitLoading}>
+                    <RefreshCw size={12} style={fitLoading ? { animation: "spin 1s linear infinite" } : {}} />
+                  </button>
+                  <button style={styles.fitIconBtn} onClick={handleDisconnectFit}>
+                    <Unlink size={12} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button style={styles.fitConnectBtn} onClick={connectFit} disabled={fitLoading}>
+                {fitLoading ? (
+                  <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+                ) : (
+                  <Link2 size={13} />
+                )}
+                Connect Google Fit for real burn data
+              </button>
+            )}
+          </div>
+          {fitError && <div style={styles.errorText}>{fitError}</div>}
         </section>
 
         <section style={styles.scanSection}>
@@ -461,8 +558,8 @@ export default function App() {
             Goal: {stats.goalLowLb}&ndash;{stats.goalHighLb} lb &middot; currently {stats.weightLb} lb
           </div>
           {chartData.length > 1 && (
-            <div style={{ width: "100%", height: 160, marginTop: 14 }}>
-              <ResponsiveContainer>
+            <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden" }}>
+              <ResponsiveContainer width="99%" height="100%">
                 <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={{ stroke: colors.gridLine }} tickLine={false} />
@@ -473,6 +570,26 @@ export default function App() {
               </ResponsiveContainer>
             </div>
           )}
+        </section>
+
+        <section style={styles.sleepSection}>
+          <div style={styles.sectionLabel}>Sleep Log</div>
+          <div style={styles.weightInputRow}>
+            <input
+              type="number"
+              step="0.5"
+              placeholder="e.g. 7.5 hrs"
+              value={newSleep}
+              onChange={(ev) => setNewSleep(ev.target.value)}
+              style={styles.weightInput}
+            />
+            <button style={styles.logWeightBtn} onClick={logSleep} disabled={!newSleep}>
+              <Moon size={15} /> Log sleep
+            </button>
+          </div>
+          <div style={styles.goalNote}>
+            {todaySleep ? `Logged today: ${todaySleep} hours` : "Target: 7–8 hours per night"}
+          </div>
         </section>
         </>
         )}
@@ -486,13 +603,13 @@ export default function App() {
 }
 
 function HistoryView({ target, onBack }) {
-  const [days, setDays] = useState(null); // null = loading
+  const [days, setDays] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
         const listResult = await storage.list("food-log:");
-        const keys = (listResult?.keys || []).sort().reverse(); // newest first
+        const keys = (listResult?.keys || []).sort().reverse();
         const rows = [];
         for (const key of keys) {
           try {
@@ -681,23 +798,26 @@ const colors = {
 };
 
 const styles = {
-  page: { minHeight: "100vh", background: colors.bg, fontFamily: "'Inter', system-ui, sans-serif", color: colors.text, padding: "24px 16px 60px" },
-  wrap: { maxWidth: 480, margin: "0 auto" },
+  page: { minHeight: "100vh", background: colors.bg, fontFamily: "'Inter', system-ui, sans-serif", color: colors.text, padding: "24px 16px 60px", boxSizing: "border-box" },
+  wrap: { maxWidth: 480, margin: "0 auto", width: "100%" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
   eyebrow: { fontSize: 11, letterSpacing: "0.14em", color: colors.gold, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 4 },
   h1: { fontFamily: "'Bitter', serif", fontSize: 28, fontWeight: 700, margin: 0, letterSpacing: "-0.01em" },
   iconBtn: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 9, color: colors.textMuted, cursor: "pointer" },
   statsPanel: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 14, padding: 16, marginBottom: 16 },
   fieldLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 6, fontFamily: "'IBM Plex Mono', monospace" },
-  numInput: { width: "100%", background: colors.cardAlt, border: `1px solid ${colors.border}`, borderRadius: 8, padding: "8px 10px", color: colors.text, fontSize: 14, fontFamily: "'Inter', sans-serif", boxSizing: "border-box" },
+  numInput: { width: "100%", minWidth: 0, background: colors.cardAlt, border: `1px solid ${colors.border}`, borderRadius: 8, padding: "8px 10px", color: colors.text, fontSize: 16, fontFamily: "'Inter', sans-serif", boxSizing: "border-box" },
   summaryCard: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 16, padding: "20px 18px", marginBottom: 18 },
   summaryRow: { display: "flex", justifyContent: "space-between", marginBottom: 14 },
-  summaryStat: { textAlign: "center", flex: 1 },
+  summaryStat: { textAlign: "center", flex: 1, minWidth: 0 },
   summaryValue: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 600, lineHeight: 1.1 },
   summaryLabel: { fontSize: 10, letterSpacing: "0.1em", color: colors.textMuted, marginTop: 4 },
   progressTrack: { height: 8, background: colors.cardAlt, borderRadius: 999, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 999, transition: "width 0.4s ease" },
-  metaRow: { display: "flex", justifyContent: "space-between", marginTop: 12 },
+  metaRow: { display: "flex", justifyContent: "space-between", marginTop: 12, flexWrap: "wrap", gap: 6 },
+  fitRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${colors.border}` },
+  fitConnectBtn: { background: "none", border: `1px dashed ${colors.border}`, borderRadius: 8, padding: "6px 10px", fontSize: 11.5, color: colors.textMuted, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", width: "100%", justifyContent: "center" },
+  fitIconBtn: { background: colors.cardAlt, border: `1px solid ${colors.border}`, borderRadius: 6, padding: 5, color: colors.textMuted, cursor: "pointer", display: "flex" },
   metaText: { fontSize: 11.5, color: colors.textMuted },
   scanSection: { marginBottom: 24 },
   scanBtn: { width: "100%", background: colors.gold, color: colors.onGold, border: "none", borderRadius: 12, padding: "14px 16px", fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer" },
@@ -708,10 +828,9 @@ const styles = {
   inlineForm: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 14, marginTop: 10 },
   inlineFormHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: colors.textMuted, marginBottom: 8 },
   closeBtn: { background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: 2 },
-  textarea: { width: "100%", background: colors.cardAlt, border: `1px solid ${colors.border}`, borderRadius: 8, padding: "8px 10px", color: colors.text, fontSize: 14, fontFamily: "'Inter', sans-serif", boxSizing: "border-box", resize: "vertical" },
+  textarea: { width: "100%", minWidth: 0, background: colors.cardAlt, border: `1px solid ${colors.border}`, borderRadius: 8, padding: "8px 10px", color: colors.text, fontSize: 16, fontFamily: "'Inter', sans-serif", boxSizing: "border-box", resize: "vertical" },
   inlineSubmitBtn: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "10px 14px", fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", marginTop: 10, width: "100%" },
   inlineSubmitBtnCompact: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "0 16px", fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", whiteSpace: "nowrap" },
-  entryThumbPlaceholder: { width: 44, height: 44, borderRadius: 8, flexShrink: 0, border: `1px solid ${colors.border}`, background: colors.cardAlt, display: "flex", alignItems: "center", justifyContent: "center", color: colors.textMuted },
   sectionLabel: { fontSize: 11, letterSpacing: "0.12em", color: colors.textMuted, fontFamily: "'IBM Plex Mono', monospace", marginBottom: 10, textTransform: "uppercase" },
   emptyState: { color: colors.textMuted, fontSize: 13.5, padding: "20px 0", textAlign: "center" },
   receipt: { background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 14, padding: "4px 14px", overflow: "hidden" },
@@ -724,9 +843,10 @@ const styles = {
   entryCals: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 15, fontWeight: 600, color: colors.gold, whiteSpace: "nowrap" },
   trashBtn: { background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: 4 },
   weightSection: { marginTop: 26 },
-  weightInputRow: { display: "flex", gap: 8 },
-  weightInput: { flex: 1, background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: "10px 12px", color: colors.text, fontSize: 14, boxSizing: "border-box" },
-  logWeightBtn: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, cursor: "pointer" },
+  sleepSection: { marginTop: 26 },
+  weightInputRow: { display: "flex", gap: 8, minWidth: 0, width: "100%" },
+  weightInput: { flex: 1, minWidth: 0, background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10, padding: "10px 12px", color: colors.text, fontSize: 16, boxSizing: "border-box" },
+  logWeightBtn: { background: colors.teal, color: colors.onTeal, border: "none", borderRadius: 10, padding: "0 14px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, cursor: "pointer", flexShrink: 0 },
   goalNote: { fontSize: 11.5, color: colors.textMuted, marginTop: 8 },
   footer: { marginTop: 32, fontSize: 11, color: colors.textMuted, textAlign: "center", lineHeight: 1.5 },
   historyHeaderRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 14 },
