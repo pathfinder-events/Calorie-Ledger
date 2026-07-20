@@ -8,7 +8,7 @@ html, body {
   width: 100%;
   max-width: 100vw; 
   overflow-x: hidden; 
-  touch-action: pan-y; /* Prevents horizontal touch/pinch gestures */
+  touch-action: pan-y; 
 }
 
 #root { 
