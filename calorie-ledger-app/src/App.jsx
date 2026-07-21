@@ -636,7 +636,6 @@ export default function App() {
               style={styles.weightInput}
             />
             <button style={styles.logWeightBtn} onClick={logSleep} disabled={!newSleep}>
-              <button onClick={logSleep} style={styles.logWeightBtn}>
               <Moon size={15} /> Log sleep
             </button>
           </div>
