@@ -43,6 +43,23 @@ export function logSleepToSheet(dateStr, hours) {
   console.log("--> logSleepToSheet called:", { dateStr, hours });
   post("sleep", { date: dateStr, hours });
 }
-export function logExerciseToSheet(dateStr, activity, duration, calories) {
-  post("exercise", { date: dateStr, activity, duration, calories });
+export async function logExerciseToSheet(date, activity, minutes, calories) {
+  try {
+    await fetch("YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL", {
+      method: "POST",
+      mode: "no-cors",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "logExercise",
+        date: date,
+        activity: activity,
+        minutes: minutes,
+        calories: calories,
+      }),
+    });
+  } catch (err) {
+    console.error("Error logging exercise to sheet:", err);
+  }
 }
