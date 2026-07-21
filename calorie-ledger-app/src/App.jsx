@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink, Moon } from "lucide-react";
 import { storage } from "./storage.js";
-import { logFoodToSheet, logWeightToSheet, logSleepToSheet } from "./sheetSync.js";
+import { logFoodToSheet, logWeightToSheet, logSleepToSheet, logExcerciseToSheet } from "./sheetSync.js";
 import { requestFitAccess, wasFitPreviouslyConnected, disconnectFit, fetchTodayFitData } from "./googleFit.js";
 
 // Uses local date components
@@ -24,7 +24,15 @@ async function fetchWithTimeout(url, options, timeoutMs = 45000) {
     clearTimeout(timer);
   }
 }
-
+const EXERCISE_METS = {
+  "Weight Training": 3.5,
+  "Mowing Lawn": 5.5,
+  "Walking": 4.0,
+  "Running / Jogging": 8.0,
+  "Cycling": 6.8,
+  "Yardwork": 4.0,
+  "Yoga / Stretching": 2.5
+};
 const DEFAULT_STATS = {
   sex: "male",
   age: 57,
