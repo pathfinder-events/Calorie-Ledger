@@ -645,53 +645,6 @@ export default function App() {
         </section>
 
         {/* EXERCISE LOG */}
-        <section style={{ marginTop: 24 }}>
-          <div style={styles.eyebrow}>EXERCISE LOG</div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <select
-              value={exerciseActivity}
-              onChange={(e) => setExerciseActivity(e.target.value)}
-              style={{
-                ...styles.weightInput,
-                flex: 2,
-                backgroundColor: "#f4ebd0",
-                color: "#4a3e2e",
-                border: "1px solid #d8ccb0",
-              }}
-            >
-              {Object.keys(EXERCISE_METS).map((act) => (
-                <option key={act} value={act}>
-                  {act}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              placeholder="Mins"
-              value={exerciseDuration}
-              onChange={(e) => setExerciseDuration(e.target.value)}
-              style={{
-                ...styles.weightInput,
-                flex: 1,
-                backgroundColor: "#f4ebd0",
-                color: "#4a3e2e",
-                border: "1px solid #d8ccb0",
-              }}
-            />
-            <button
-              onClick={logExercise}
-              style={{ ...styles.logWeightBtn, whiteSpace: "nowrap" }}
-            >
-              + Log exercise
-            </button>
-          </div>
-        </section>
-<footer style={styles.footer}>
-Estimates from photo scans are approximate, not medical or clinical guidance. Check with your doctor before changing your diet.
-</footer>
-</>
-);
-}
 
 function HistoryView({ target, onBack }) {
   const [days, setDays] = useState(null);
