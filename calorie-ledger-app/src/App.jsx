@@ -642,12 +642,7 @@ export default function App() {
           <div style={styles.goalNote}>
             {todaySleep ? `Logged today: ${todaySleep} hours` : "Target: 7–8 hours per night"}
           </div>
-        </section>
-          {/* EXERCISE LOG */}
-        <section style={{ marginTop: 24 }}>
-          <div style={styles.eyebrow}>EXERCISE LOG</div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            {/* EXERCISE LOG */}
+        {/* EXERCISE LOG */}
         <section style={{ marginTop: 24 }}>
           <div style={styles.eyebrow}>EXERCISE LOG</div>
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -657,7 +652,7 @@ export default function App() {
               style={{
                 ...styles.weightInput,
                 flex: 2,
-                backgroundColor: "#f4ebd0", // Warm cream background matching weight/sleep
+                backgroundColor: "#f4ebd0",
                 color: "#4a3e2e",
                 border: "1px solid #d8ccb0",
               }}
@@ -673,6 +668,22 @@ export default function App() {
               placeholder="Mins"
               value={exerciseDuration}
               onChange={(e) => setExerciseDuration(e.target.value)}
+              style={{
+                ...styles.weightInput,
+                flex: 1,
+                backgroundColor: "#f4ebd0",
+                color: "#4a3e2e",
+                border: "1px solid #d8ccb0",
+              }}
+            />
+            <button
+              onClick={logExercise}
+              style={{ ...styles.logWeightBtn, whiteSpace: "nowrap" }}
+            >
+              + Log exercise
+            </button>
+          </div>
+        </section>
               style={{
                 ...styles.weightInput,
                 flex: 1,
