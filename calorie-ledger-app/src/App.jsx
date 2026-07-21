@@ -643,14 +643,14 @@ export default function App() {
             {todaySleep ? `Logged today: ${todaySleep} hours` : "Target: 7–8 hours per night"}
           </div>
         </section>
-          {/* Exercise Logging Section */}
-        <section style={{ marginTop: 16, padding: 16, background: "rgba(255,255,255,0.05)", borderRadius: 12 }}>
-          <div style={{ fontWeight: "bold", marginBottom: 8 }}>Log Exercise</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          {/* EXERCISE LOG */}
+        <section style={{ marginTop: 24 }}>
+          <div style={styles.eyebrow}>EXERCISE LOG</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <select
               value={exerciseActivity}
               onChange={(e) => setExerciseActivity(e.target.value)}
-              style={{ padding: 8, borderRadius: 6, background: "#222", color: "#fff", border: "1px solid #444", flex: 1 }}
+              style={{ ...styles.weightInput, flex: 2, background: "rgba(0,0,0,0.04)" }}
             >
               {Object.keys(EXERCISE_METS).map((act) => (
                 <option key={act} value={act}>
@@ -663,15 +663,15 @@ export default function App() {
               placeholder="Mins"
               value={exerciseDuration}
               onChange={(e) => setExerciseDuration(e.target.value)}
-              style={{ padding: 8, borderRadius: 6, width: 80, background: "#222", color: "#fff", border: "1px solid #444" }}
+              style={{ ...styles.weightInput, flex: 1, background: "rgba(0,0,0,0.04)" }}
             />
+            <button
+              onClick={logExercise}
+              style={{ ...styles.logWeightBtn, whiteSpace: "nowrap" }}
+            >
+              + Log exercise
+            </button>
           </div>
-          <button
-            onClick={logExercise}
-            style={{ width: "100%", padding: 10, borderRadius: 6, background: "#3A4D39", color: "#fff", border: "none", fontWeight: "bold", cursor: "pointer" }}
-          >
-            Log Exercise
-          </button>
         </section>
         </>
         )}
