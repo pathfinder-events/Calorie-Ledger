@@ -378,7 +378,7 @@ export default function App() {
     const estCalories = Math.round(met * rmrPerMin * mins);
 
     // Sync to Google Sheet
-    logExerciseToSheet(todayKey(), exerciseActivity, mins, estCalories);
+    logExerciseToSheet(today(), exerciseActivity, mins, estCalories);
 
     // Reset input
     setExerciseDuration("");
