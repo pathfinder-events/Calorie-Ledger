@@ -338,21 +338,19 @@ export default function App() {
       { date: today, hours: val }
     ].sort((a, b) => a.date.localeCompare(b.date));
 
-    // Updates state and clears input immediately
     setSleepLog(updated);
     setNewSleep("");
 
-    // Trigger Google Sheet sync
     logSleepToSheet(today, val);
 
-    // Save locally
     try {
       await storage.set("sleep-log", JSON.stringify(updated));
     } catch (e) {
       console.error("Failed to save sleep log", e);
     }
   };
-// Exercise state
+
+  // Exercise state
   const [exerciseActivity, setExerciseActivity] = useState("Weight Training");
   const [exerciseDuration, setExerciseDuration] = useState("");
 
@@ -360,7 +358,6 @@ export default function App() {
     const mins = parseFloat(exerciseDuration);
     if (!mins || mins <= 0 || !exerciseActivity) return;
 
-    // Calculate calories using your profile (57, 65", 190lbs male)
     const met = EXERCISE_METS[exerciseActivity] || 4.0;
     
     const weightLb = stats?.weightLb || 190;
@@ -377,12 +374,10 @@ export default function App() {
     const rmrPerMin = rmrKcalDay / 1440;
     const estCalories = Math.round(met * rmrPerMin * mins);
 
-    // Sync to Google Sheet
     logExerciseToSheet(today, exerciseActivity, mins, estCalories);
-
-    // Reset input
     setExerciseDuration("");
   };
+
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
   const todaySleep = sleepLog.find((s) => s.date === today)?.hours;
 
@@ -407,244 +402,284 @@ export default function App() {
         {view === "history" ? (
           <HistoryView target={target} onBack={() => setView("today")} />
         ) : (
-        <>
-        {statsOpen && <StatsPanel stats={stats} setStats={setStats} />}
+          <>
+            {statsOpen && <StatsPanel stats={stats} setStats={setStats} />}
 
-        <section style={styles.summaryCard}>
-          <div style={styles.summaryRow}>
-            <SummaryStat label="TARGET" value={fmt(target)} accent={colors.gold} />
-            <SummaryStat label="EATEN" value={fmt(consumed)} accent={colors.text} />
-            <SummaryStat
-              label={remaining >= 0 ? "REMAINING" : "OVER"}
-              value={fmt(Math.abs(remaining))}
-              accent={remaining >= 0 ? colors.teal : colors.rust}
-            />
-          </div>
-          <ProgressBar consumed={consumed} target={target} />
-          <div style={styles.metaRow}>
-            <span style={styles.metaText}>
-              <Flame size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
-              Burns ~{fmt(tdee)} cal/day &middot; BMR {fmt(bmr)}
-            </span>
-            <span style={styles.metaText}>
-              <TrendingDown size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
-              ~{weeklyLoss.toFixed(1)} lb/wk pace
-            </span>
-          </div>
-
-          <div style={styles.fitRow}>
-            {fitConnected ? (
-              <>
+            <section style={styles.summaryCard}>
+              <div style={styles.summaryRow}>
+                <SummaryStat label="TARGET" value={fmt(target)} accent={colors.gold} />
+                <SummaryStat label="EATEN" value={fmt(consumed)} accent={colors.text} />
+                <SummaryStat
+                  label={remaining >= 0 ? "REMAINING" : "OVER"}
+                  value={fmt(Math.abs(remaining))}
+                  accent={remaining >= 0 ? colors.teal : colors.rust}
+                />
+              </div>
+              <ProgressBar consumed={consumed} target={target} />
+              <div style={styles.metaRow}>
                 <span style={styles.metaText}>
-                  <Footprints size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
-                  {fitData ? (
-                    <>
-                      {fmt(fitData.calories)} cal &middot; {fmt(fitData.steps)} steps today (Google Fit)
-                    </>
-                  ) : (
-                    "Loading Google Fit data..."
-                  )}
+                  <Flame size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
+                  Burns ~{fmt(tdee)} cal/day &middot; BMR {fmt(bmr)}
                 </span>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button style={styles.fitIconBtn} onClick={refreshFitData} disabled={fitLoading}>
-                    <RefreshCw size={12} style={fitLoading ? { animation: "spin 1s linear infinite" } : {}} />
+                <span style={styles.metaText}>
+                  <TrendingDown size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
+                  ~{weeklyLoss.toFixed(1)} lb/wk pace
+                </span>
+              </div>
+
+              <div style={styles.fitRow}>
+                {fitConnected ? (
+                  <>
+                    <span style={styles.metaText}>
+                      <Footprints size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
+                      {fitData ? (
+                        <>
+                          {fmt(fitData.calories)} cal &middot; {fmt(fitData.steps)} steps today (Google Fit)
+                        </>
+                      ) : (
+                        "Loading Google Fit data..."
+                      )}
+                    </span>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button style={styles.fitIconBtn} onClick={refreshFitData} disabled={fitLoading}>
+                        <RefreshCw size={12} style={fitLoading ? { animation: "spin 1s linear infinite" } : {}} />
+                      </button>
+                      <button style={styles.fitIconBtn} onClick={handleDisconnectFit}>
+                        <Unlink size={12} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button style={styles.fitConnectBtn} onClick={connectFit} disabled={fitLoading}>
+                    {fitLoading ? (
+                      <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
+                    ) : (
+                      <Link2 size={13} />
+                    )}
+                    Connect Google Fit for real burn data
                   </button>
-                  <button style={styles.fitIconBtn} onClick={handleDisconnectFit}>
-                    <Unlink size={12} />
+                )}
+              </div>
+              {fitError && <div style={styles.errorText}>{fitError}</div>}
+            </section>
+
+            <section style={styles.scanSection}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={(e) => handlePhoto(e.target.files[0])}
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => handlePhoto(e.target.files[0])}
+              />
+              <button style={styles.scanBtn} onClick={() => fileInputRef.current?.click()} disabled={analyzing}>
+                {analyzing ? (
+                  <>
+                    <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
+                    Reading your plate...
+                  </>
+                ) : (
+                  <>
+                    <Camera size={18} />
+                    Scan a meal
+                  </>
+                )}
+              </button>
+
+              <div style={styles.altRow}>
+                <button style={styles.altLink} onClick={() => galleryInputRef.current?.click()}>
+                  <ImageIcon size={13} /> Choose photo
+                </button>
+                <span style={styles.altDivider}>&middot;</span>
+                <button
+                  style={styles.altLink}
+                  onClick={() => setEntryMode((m) => (m === "describe" ? null : "describe"))}
+                >
+                  <Type size={13} /> Type it in
+                </button>
+                <span style={styles.altDivider}>&middot;</span>
+                <button
+                  style={styles.altLink}
+                  onClick={() => setEntryMode((m) => (m === "manual" ? null : "manual"))}
+                >
+                  <Edit3 size={13} /> Enter manually
+                </button>
+              </div>
+
+              {entryMode === "describe" && (
+                <div style={styles.inlineForm}>
+                  <div style={styles.inlineFormHeader}>
+                    <span>Describe what you ate — AI estimates the calories</span>
+                    <button style={styles.closeBtn} onClick={() => setEntryMode(null)}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <textarea
+                    value={descText}
+                    onChange={(e) => setDescText(e.target.value)}
+                    placeholder="e.g. Two scrambled eggs, a slice of sourdough toast with butter, black coffee"
+                    style={styles.textarea}
+                    rows={3}
+                  />
+                  <button style={styles.inlineSubmitBtn} onClick={handleDescribe} disabled={analyzing || !descText.trim()}>
+                    {analyzing ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Type size={15} />}
+                    Estimate calories
                   </button>
                 </div>
-              </>
-            ) : (
-              <button style={styles.fitConnectBtn} onClick={connectFit} disabled={fitLoading}>
-                {fitLoading ? (
-                  <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
-                ) : (
-                  <Link2 size={13} />
-                )}
-                Connect Google Fit for real burn data
-              </button>
-            )}
-          </div>
-          {fitError && <div style={styles.errorText}>{fitError}</div>}
-        </section>
+              )}
 
-        <section style={styles.scanSection}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            onChange={(e) => handlePhoto(e.target.files[0])}
-          />
-          <input
-            ref={galleryInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => handlePhoto(e.target.files[0])}
-          />
-          <button style={styles.scanBtn} onClick={() => fileInputRef.current?.click()} disabled={analyzing}>
-            {analyzing ? (
-              <>
-                <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
-                Reading your plate...
-              </>
-            ) : (
-              <>
-                <Camera size={18} />
-                Scan a meal
-              </>
-            )}
-          </button>
+              {entryMode === "manual" && (
+                <div style={styles.inlineForm}>
+                  <div style={styles.inlineFormHeader}>
+                    <span>Enter exact calories — no AI estimate</span>
+                    <button style={styles.closeBtn} onClick={() => setEntryMode(null)}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder="What was it? e.g. Protein shake"
+                    style={styles.numInput}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <input
+                      type="number"
+                      value={manualCals}
+                      onChange={(e) => setManualCals(e.target.value)}
+                      placeholder="Calories"
+                      style={styles.numInput}
+                    />
+                    <button
+                      style={styles.inlineSubmitBtnCompact}
+                      onClick={addManualEntry}
+                      disabled={!manualName.trim() || !manualCals}
+                    >
+                      <Plus size={15} /> Add
+                    </button>
+                  </div>
+                </div>
+              )}
 
-          <div style={styles.altRow}>
-            <button style={styles.altLink} onClick={() => galleryInputRef.current?.click()}>
-              <ImageIcon size={13} /> Choose photo
-            </button>
-            <span style={styles.altDivider}>&middot;</span>
-            <button
-              style={styles.altLink}
-              onClick={() => setEntryMode((m) => (m === "describe" ? null : "describe"))}
-            >
-              <Type size={13} /> Type it in
-            </button>
-            <span style={styles.altDivider}>&middot;</span>
-            <button
-              style={styles.altLink}
-              onClick={() => setEntryMode((m) => (m === "manual" ? null : "manual"))}
-            >
-              <Edit3 size={13} /> Enter manually
-            </button>
-          </div>
+              {error && <div style={styles.errorText}>{error}</div>}
+            </section>
 
-          {entryMode === "describe" && (
-            <div style={styles.inlineForm}>
-              <div style={styles.inlineFormHeader}>
-                <span>Describe what you ate — AI estimates the calories</span>
-                <button style={styles.closeBtn} onClick={() => setEntryMode(null)}>
-                  <X size={14} />
-                </button>
+            <section>
+              <div style={styles.sectionLabel}>Today's entries</div>
+              {entries.length === 0 && !analyzing && (
+                <div style={styles.emptyState}>No meals logged yet. Snap a photo to start today's ledger.</div>
+              )}
+              <div style={styles.receipt}>
+                {entries.map((e, i) => (
+                  <div key={e.id}>
+                    <EntryRow entry={e} onRemove={() => removeEntry(e.id)} />
+                    {i < entries.length - 1 && <div style={styles.dashedDivider} />}
+                  </div>
+                ))}
               </div>
-              <textarea
-                value={descText}
-                onChange={(e) => setDescText(e.target.value)}
-                placeholder="e.g. Two scrambled eggs, a slice of sourdough toast with butter, black coffee"
-                style={styles.textarea}
-                rows={3}
-              />
-              <button style={styles.inlineSubmitBtn} onClick={handleDescribe} disabled={analyzing || !descText.trim()}>
-                {analyzing ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Type size={15} />}
-                Estimate calories
-              </button>
-            </div>
-          )}
+            </section>
 
-          {entryMode === "manual" && (
-            <div style={styles.inlineForm}>
-              <div style={styles.inlineFormHeader}>
-                <span>Enter exact calories — no AI estimate</span>
-                <button style={styles.closeBtn} onClick={() => setEntryMode(null)}>
-                  <X size={14} />
-                </button>
-              </div>
-              <input
-                type="text"
-                value={manualName}
-                onChange={(e) => setManualName(e.target.value)}
-                placeholder="What was it? e.g. Protein shake"
-                style={styles.numInput}
-              />
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <section style={styles.weightSection}>
+              <div style={styles.sectionLabel}>Weight trend</div>
+              <div style={styles.weightInputRow}>
                 <input
                   type="number"
-                  value={manualCals}
-                  onChange={(e) => setManualCals(e.target.value)}
-                  placeholder="Calories"
-                  style={styles.numInput}
+                  placeholder={`${stats.weightLb} lb`}
+                  value={newWeight}
+                  onChange={(ev) => setNewWeight(ev.target.value)}
+                  style={styles.weightInput}
                 />
-                <button
-                  style={styles.inlineSubmitBtnCompact}
-                  onClick={addManualEntry}
-                  disabled={!manualName.trim() || !manualCals}
-                >
-                  <Plus size={15} /> Add
+                <button style={styles.logWeightBtn} onClick={logWeight} disabled={!newWeight}>
+                  <Plus size={15} /> Log today
                 </button>
               </div>
-            </div>
-          )}
-
-          {error && <div style={styles.errorText}>{error}</div>}
-        </section>
-
-        <section>
-          <div style={styles.sectionLabel}>Today's entries</div>
-          {entries.length === 0 && !analyzing && (
-            <div style={styles.emptyState}>No meals logged yet. Snap a photo to start today's ledger.</div>
-          )}
-          <div style={styles.receipt}>
-            {entries.map((e, i) => (
-              <div key={e.id}>
-                <EntryRow entry={e} onRemove={() => removeEntry(e.id)} />
-                {i < entries.length - 1 && <div style={styles.dashedDivider} />}
+              <div style={styles.goalNote}>
+                Goal: {stats.goalLowLb}&ndash;{stats.goalHighLb} lb &middot; currently {stats.weightLb} lb
               </div>
-            ))}
-          </div>
-        </section>
+              {chartData.length > 1 && (
+                <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden" }}>
+                  <ResponsiveContainer width="99%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={{ stroke: colors.gridLine }} tickLine={false} />
+                      <YAxis domain={["dataMin - 3", "dataMax + 3"]} tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
+                      <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.gridLine}`, borderRadius: 8, fontSize: 12, color: colors.text }} />
+                      <Line type="monotone" dataKey="weight" stroke={colors.gold} strokeWidth={2} dot={{ fill: colors.gold, r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </section>
 
-        <section style={styles.weightSection}>
-          <div style={styles.sectionLabel}>Weight trend</div>
-          <div style={styles.weightInputRow}>
-            <input
-              type="number"
-              placeholder={`${stats.weightLb} lb`}
-              value={newWeight}
-              onChange={(ev) => setNewWeight(ev.target.value)}
-              style={styles.weightInput}
-            />
-            <button style={styles.logWeightBtn} onClick={logWeight} disabled={!newWeight}>
-              <Plus size={15} /> Log today
-            </button>
-          </div>
-          <div style={styles.goalNote}>
-            Goal: {stats.goalLowLb}&ndash;{stats.goalHighLb} lb &middot; currently {stats.weightLb} lb
-          </div>
-          {chartData.length > 1 && (
-            <div style={{ width: "100%", maxWidth: "100%", height: 160, marginTop: 14, overflow: "hidden" }}>
-              <ResponsiveContainer width="99%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid stroke={colors.gridLine} strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={{ stroke: colors.gridLine }} tickLine={false} />
-                  <YAxis domain={["dataMin - 3", "dataMax + 3"]} tick={{ fill: colors.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={38} />
-                  <Tooltip contentStyle={{ background: colors.card, border: `1px solid ${colors.gridLine}`, borderRadius: 8, fontSize: 12, color: colors.text }} />
-                  <Line type="monotone" dataKey="weight" stroke={colors.gold} strokeWidth={2} dot={{ fill: colors.gold, r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </section>
+            <section style={styles.sleepSection}>
+              <div style={styles.sectionLabel}>Sleep Log</div>
+              <div style={styles.weightInputRow}>
+                <input
+                  type="number"
+                  step="0.5"
+                  placeholder="e.g. 7.5 hrs"
+                  value={newSleep}
+                  onChange={(ev) => setNewSleep(ev.target.value)}
+                  style={styles.weightInput}
+                />
+                <button style={styles.logWeightBtn} onClick={logSleep} disabled={!newSleep}>
+                  <Moon size={15} /> Log sleep
+                </button>
+              </div>
+              <div style={styles.goalNote}>
+                {todaySleep ? `Logged today: ${todaySleep} hours` : "Target: 7–8 hours per night"}
+              </div>
+            </section>
 
-        <section style={styles.sleepSection}>
-          <div style={styles.sectionLabel}>Sleep Log</div>
-          <div style={styles.weightInputRow}>
-            <input
-              type="number"
-              step="0.5"
-              placeholder="e.g. 7.5 hrs"
-              value={newSleep}
-              onChange={(ev) => setNewSleep(ev.target.value)}
-              style={styles.weightInput}
-            />
-            <button style={styles.logWeightBtn} onClick={logSleep} disabled={!newSleep}>
-              <Moon size={15} /> Log sleep
-            </button>
-          </div>
-          <div style={styles.goalNote}>
-            {todaySleep ? `Logged today: ${todaySleep} hours` : "Target: 7–8 hours per night"}
-          </div>
-        </section>
+            {/* EXERCISE LOG */}
+            <section style={{ marginTop: 26 }}>
+              <div style={styles.sectionLabel}>EXERCISE LOG</div>
+              <div style={styles.weightInputRow}>
+                <select
+                  value={exerciseActivity}
+                  onChange={(e) => setExerciseActivity(e.target.value)}
+                  style={{ ...styles.weightInput, flex: 2 }}
+                >
+                  {Object.keys(EXERCISE_METS).map((act) => (
+                    <option key={act} value={act}>
+                      {act}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  placeholder="Mins"
+                  value={exerciseDuration}
+                  onChange={(e) => setExerciseDuration(e.target.value)}
+                  style={{ ...styles.weightInput, flex: 1 }}
+                />
+                <button
+                  onClick={logExercise}
+                  style={{ ...styles.logWeightBtn, whiteSpace: "nowrap" }}
+                  disabled={!exerciseDuration}
+                >
+                  + Log exercise
+                </button>
+              </div>
+            </section>
 
-        {/* EXERCISE LOG */}
+            <footer style={styles.footer}>
+              Estimates from photo scans are approximate, not medical or clinical guidance. Check with your doctor before changing your diet.
+            </footer>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function HistoryView({ target, onBack }) {
   const [days, setDays] = useState(null);
