@@ -668,7 +668,7 @@ export default function App() {
           </div>
           <button
             onClick={logExercise}
-            style={{ width: "100%", padding: 10, borderRadius: 6, background: "#007AFF", color: "#fff", border: "none", fontWeight: "bold", cursor: "pointer" }}
+            style={{ width: "100%", padding: 10, borderRadius: 6, background: "#3A4D39", color: "#fff", border: "none", fontWeight: "bold", cursor: "pointer" }}
           >
             Log Exercise
           </button>
