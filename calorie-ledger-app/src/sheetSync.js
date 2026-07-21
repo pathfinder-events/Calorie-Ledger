@@ -1,65 +1,70 @@
-const WEBHOOK_URL = import.meta.env.VITE_SHEET_WEBHOOK_URL || import.meta.env.VITE_SHEET_WEB_APP_URL || "";
-const SECRET = import.meta.env.VITE_APP_SHARED_SECRET || import.meta.env.APP_SHARED_SECRET || "";
+const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // Replace with your Web App URL
 
-function post(type, data) {
-  console.log("--> post() called with:", { type, data });
-  console.log("--> Current WEBHOOK_URL:", WEBHOOK_URL);
-
-  if (!WEBHOOK_URL) {
-    console.error("❌ Sheet Sync Error: WEBHOOK_URL is completely empty!");
-    return;
-  }
-
+export async function logFoodToSheet(foodData) {
   try {
-    fetch(WEBHOOK_URL, {
+    await fetch(SCRIPT_URL, {
       method: "POST",
       mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ secret: SECRET, type, data }),
-    })
-      .then(() => console.log("✅ fetch request sent successfully!"))
-      .catch((err) => console.error("❌ fetch network error:", err));
-  } catch (e) {
-    console.error("❌ Exception inside post():", e);
-  }
-}
-
-export function logFoodToSheet(entry, dateStr) {
-  post("food", {
-    date: dateStr,
-    time: new Date(entry.time).toLocaleTimeString(),
-    name: entry.name,
-    calories: entry.calories,
-    confidence: entry.confidence,
-    note: entry.note || "",
-  });
-}
-
-export function logWeightToSheet(dateStr, weight) {
-  post("weight", { date: dateStr, weight });
-}
-
-export function logSleepToSheet(dateStr, hours) {
-  console.log("--> logSleepToSheet called:", { dateStr, hours });
-  post("sleep", { date: dateStr, hours });
-}
-export async function logExerciseToSheet(date, activity, minutes, calories) {
-  try {
-    await fetch("YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL", {
-      method: "POST",
-      mode: "no-cors",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "logExercise",
-        date: date,
-        activity: activity,
-        minutes: minutes,
-        calories: calories,
+        type: "food",
+        data: foodData,
       }),
     });
   } catch (err) {
-    console.error("Error logging exercise to sheet:", err);
+    console.error("Error logging food:", err);
+  }
+}
+
+export async function logWeightToSheet(date, weight) {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "weight",
+        data: { date, weight },
+      }),
+    });
+  } catch (err) {
+    console.error("Error logging weight:", err);
+  }
+}
+
+export async function logSleepToSheet(date, hours) {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "sleep",
+        data: { date, hours },
+      }),
+    });
+  } catch (err) {
+    console.error("Error logging sleep:", err);
+  }
+}
+
+export async function logExerciseToSheet(date, activity, duration, calories) {
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "exercise",
+        data: {
+          date: date,
+          activity: activity,
+          duration: duration,
+          calories: calories,
+        },
+      }),
+    });
+  } catch (err) {
+    console.error("Error logging exercise:", err);
   }
 }
