@@ -650,7 +650,13 @@ export default function App() {
             <select
               value={exerciseActivity}
               onChange={(e) => setExerciseActivity(e.target.value)}
-              style={{ ...styles.weightInput, flex: 2, background: "rgba(0,0,0,0.04)" }}
+              style={{
+                ...styles.weightInput,
+                flex: 2,
+                backgroundColor: "inherit",
+                color: "inherit",
+                borderColor: "inherit",
+              }}
             >
               {Object.keys(EXERCISE_METS).map((act) => (
                 <option key={act} value={act}>
@@ -663,7 +669,13 @@ export default function App() {
               placeholder="Mins"
               value={exerciseDuration}
               onChange={(e) => setExerciseDuration(e.target.value)}
-              style={{ ...styles.weightInput, flex: 1, background: "rgba(0,0,0,0.04)" }}
+              style={{
+                ...styles.weightInput,
+                flex: 1,
+                backgroundColor: "inherit",
+                color: "inherit",
+                borderColor: "inherit",
+              }}
             />
             <button
               onClick={logExercise}
