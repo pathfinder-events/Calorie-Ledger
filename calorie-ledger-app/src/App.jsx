@@ -728,22 +728,28 @@ export default function App() {
             </button>
           </div>
         </section>
+              {/* EXERCISE LOG */}
+        <section style={{ marginTop: 24 }}>
+          <div style={styles.eyebrow}>EXERCISE LOG</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <select
+              value={exerciseActivity}
+              onChange={(e) => setExerciseActivity(e.target.value)}
               style={{
                 ...styles.weightInput,
-                flex: 1,
-                backgroundColor: "#f4ebd0", // Warm cream background matching weight/sleep
+                flex: 2,
+                backgroundColor: "#f4ebd0",
                 color: "#4a3e2e",
                 border: "1px solid #d8ccb0",
               }}
-            />
-            <button
-              onClick={logExercise}
-              style={{ ...styles.logWeightBtn, whiteSpace: "nowrap" }}
             >
-              + Log exercise
-            </button>
-          </div>
-        </section>
+              {Object.keys(EXERCISE_METS).map((act) => (
+                <option key={act} value={act}>
+                  {act}
+                </option>
+              ))}
+            </select>
+            <input
               type="number"
               placeholder="Mins"
               value={exerciseDuration}
@@ -751,9 +757,9 @@ export default function App() {
               style={{
                 ...styles.weightInput,
                 flex: 1,
-                backgroundColor: "inherit",
-                color: "inherit",
-                borderColor: "inherit",
+                backgroundColor: "#f4ebd0",
+                color: "#4a3e2e",
+                border: "1px solid #d8ccb0",
               }}
             />
             <button
