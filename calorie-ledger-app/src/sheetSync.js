@@ -1,20 +1,26 @@
-const WEBHOOK_URL = "https://script.google.com/macros/s/1vX8Y26nXSX9f-4IhEDU_gvEtPcUj6AV1DJ7m5EaKuzPddWZez1Y7zF4I/exec";
+const WEBHOOK_URL = import.meta.env.VITE_SHEET_WEBHOOK_URL || import.meta.env.VITE_SHEET_WEB_APP_URL || "";
 const SECRET = import.meta.env.VITE_APP_SHARED_SECRET || import.meta.env.APP_SHARED_SECRET || "";
 
 function post(type, data) {
+  console.log("--> post() called with:", { type, data });
+  console.log("--> Current WEBHOOK_URL:", WEBHOOK_URL);
+
   if (!WEBHOOK_URL) {
-    console.error("Sheet Sync Error: WEBHOOK_URL is missing!");
+    console.error("❌ Sheet Sync Error: WEBHOOK_URL is completely empty!");
     return;
   }
+
   try {
     fetch(WEBHOOK_URL, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ secret: SECRET, type, data }),
-    }).catch((err) => console.error("Sheet Sync Fetch Error:", err));
+    })
+      .then(() => console.log("✅ fetch request sent successfully!"))
+      .catch((err) => console.error("❌ fetch network error:", err));
   } catch (e) {
-    console.error("Sheet Sync Exception:", e);
+    console.error("❌ Exception inside post():", e);
   }
 }
 
@@ -34,5 +40,6 @@ export function logWeightToSheet(dateStr, weight) {
 }
 
 export function logSleepToSheet(dateStr, hours) {
+  console.log("--> logSleepToSheet called:", { dateStr, hours });
   post("sleep", { date: dateStr, hours });
 }
