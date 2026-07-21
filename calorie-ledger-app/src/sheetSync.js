@@ -1,4 +1,4 @@
-const WEBHOOK_URL = import.meta.env.VITE_SHEET_WEBHOOK_URL || import.meta.env.VITE_SHEET_WEB_APP_URL || "";
+const WEBHOOK_URL = "https://script.google.com/macros/s/1vX8Y26nXSX9f-4IhEDU_gvEtPcUj6AV1DJ7m5EaKuzPddWZez1Y7zF4I/exec";
 const SECRET = import.meta.env.VITE_APP_SHARED_SECRET || import.meta.env.APP_SHARED_SECRET || "";
 
 function post(type, data) {
