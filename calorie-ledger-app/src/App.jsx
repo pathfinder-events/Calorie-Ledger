@@ -686,13 +686,10 @@ export default function App() {
             </button>
           </div>
         </section>
-        )}
-
         <footer style={styles.footer}>
           Estimates from photo scans are approximate, not medical or clinical guidance. Check with your doctor before changing your diet.
         </footer>
       </div>
-    </div>
   );
 }
 
