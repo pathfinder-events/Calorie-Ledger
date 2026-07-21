@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { Camera, Loader2, Trash2, Settings2, TrendingDown, Flame, Plus, Type, Edit3, X, History, ArrowLeft, Image as ImageIcon, Footprints, RefreshCw, Link2, Unlink, Moon } from "lucide-react";
 import { storage } from "./storage.js";
-import { logFoodToSheet, logWeightToSheet, logSleepToSheet, logExcerciseToSheet } from "./sheetSync.js";
+import { logFoodToSheet, logWeightToSheet, logSleepToSheet, logExerciseToSheet } from "./sheetSync.js";
 import { requestFitAccess, wasFitPreviouslyConnected, disconnectFit, fetchTodayFitData } from "./googleFit.js";
 
 // Uses local date components
