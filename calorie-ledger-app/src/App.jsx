@@ -352,7 +352,37 @@ export default function App() {
       console.error("Failed to save sleep log", e);
     }
   };
+// Exercise state
+  const [exerciseActivity, setExerciseActivity] = useState("Weight Training");
+  const [exerciseDuration, setExerciseDuration] = useState("");
 
+  const logExercise = async () => {
+    const mins = parseFloat(exerciseDuration);
+    if (!mins || mins <= 0 || !exerciseActivity) return;
+
+    // Calculate calories using your profile (57, 65", 190lbs male)
+    const met = EXERCISE_METS[exerciseActivity] || 4.0;
+    
+    const weightLb = stats?.weightLb || 190;
+    const heightIn = stats?.heightIn || 65;
+    const age = stats?.age || 57;
+    const sex = stats?.sex || "male";
+
+    const weightKg = weightLb * 0.453592;
+    const heightCm = heightIn * 2.54;
+
+    let rmrKcalDay = (10 * weightKg) + (6.25 * heightCm) - (5 * age);
+    rmrKcalDay += (sex === "male" ? 5 : -161);
+
+    const rmrPerMin = rmrKcalDay / 1440;
+    const estCalories = Math.round(met * rmrPerMin * mins);
+
+    // Sync to Google Sheet
+    logExerciseToSheet(today, exerciseActivity, mins, estCalories);
+
+    // Reset input
+    setExerciseDuration("");
+  };
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
   const todaySleep = sleepLog.find((s) => s.date === today)?.hours;
 
