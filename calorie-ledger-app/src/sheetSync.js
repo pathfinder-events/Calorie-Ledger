@@ -1,4 +1,4 @@
-const SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // Replace with your Web App URL
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwybOGvYH-hEoCNWuflEigS7tEGo3XbZqOE9riSyKKQVw7N4MHAOWE70YO2Juzj3iNR/exec"; // Replace with your Web App URL
 
 export async function logFoodToSheet(foodData) {
   try {
