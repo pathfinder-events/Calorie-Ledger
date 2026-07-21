@@ -643,6 +643,36 @@ export default function App() {
             {todaySleep ? `Logged today: ${todaySleep} hours` : "Target: 7–8 hours per night"}
           </div>
         </section>
+          {/* Exercise Logging Section */}
+        <section style={{ marginTop: 16, padding: 16, background: "rgba(255,255,255,0.05)", borderRadius: 12 }}>
+          <div style={{ fontWeight: "bold", marginBottom: 8 }}>Log Exercise</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <select
+              value={exerciseActivity}
+              onChange={(e) => setExerciseActivity(e.target.value)}
+              style={{ padding: 8, borderRadius: 6, background: "#222", color: "#fff", border: "1px solid #444", flex: 1 }}
+            >
+              {Object.keys(EXERCISE_METS).map((act) => (
+                <option key={act} value={act}>
+                  {act}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Mins"
+              value={exerciseDuration}
+              onChange={(e) => setExerciseDuration(e.target.value)}
+              style={{ padding: 8, borderRadius: 6, width: 80, background: "#222", color: "#fff", border: "1px solid #444" }}
+            />
+          </div>
+          <button
+            onClick={logExercise}
+            style={{ width: "100%", padding: 10, borderRadius: 6, background: "#007AFF", color: "#fff", border: "none", fontWeight: "bold", cursor: "pointer" }}
+          >
+            Log Exercise
+          </button>
+        </section>
         </>
         )}
 
