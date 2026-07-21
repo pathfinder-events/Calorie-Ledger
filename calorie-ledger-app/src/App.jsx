@@ -334,7 +334,10 @@ export default function App() {
     setSleepLog(updated);
     setNewSleep("");
 
-    // Saves directly to browser storage
+    // Trigger Google Sheet sync
+    logSleepToSheet(today, val);
+
+    // Save locally
     try {
       await storage.set("sleep-log", JSON.stringify(updated));
     } catch (e) {
