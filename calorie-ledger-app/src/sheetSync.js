@@ -43,3 +43,6 @@ export function logSleepToSheet(dateStr, hours) {
   console.log("--> logSleepToSheet called:", { dateStr, hours });
   post("sleep", { date: dateStr, hours });
 }
+export function logExerciseToSheet(dateStr, activity, duration, calories) {
+  post("exercise", { date: dateStr, activity, duration, calories });
+}
