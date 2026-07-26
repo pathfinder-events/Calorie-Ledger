@@ -196,6 +196,23 @@ export default function App() {
     storage.set("sleep-log", JSON.stringify(sleepLog)).catch(() => {});
   }, [sleepLog, loaded]);
 
+  // Auto-reload app when opened on a new day
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const currentToday = todayKey();
+        if (currentToday !== today) {
+          window.location.reload();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [today]);
+
+  const weightKg = stats.weightLb * 0.453592;
+  const heightCm = stats.heightIn * 2.54;
   const weightKg = stats.weightLb * 0.453592;
   const heightCm = stats.heightIn * 2.54;
   const bmr =
