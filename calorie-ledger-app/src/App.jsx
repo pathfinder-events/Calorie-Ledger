@@ -213,8 +213,6 @@ export default function App() {
 
   const weightKg = stats.weightLb * 0.453592;
   const heightCm = stats.heightIn * 2.54;
-  const weightKg = stats.weightLb * 0.453592;
-  const heightCm = stats.heightIn * 2.54;
   const bmr =
     stats.sex === "male"
       ? 10 * weightKg + 6.25 * heightCm - 5 * stats.age + 5
