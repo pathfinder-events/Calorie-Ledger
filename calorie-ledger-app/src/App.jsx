@@ -86,7 +86,18 @@ export default function App() {
     await logFoodToSheet(newEntry, entryDate);
     setIsSyncing(false);
   };
-
+const handleQuickWine = () => {
+  const wineEntry = {
+    id: Date.now(),
+    date: currentDate,
+    time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+    name: "Red Wine (2 glasses, 10 oz)",
+    calories: 245,
+    confidence: "high",
+    note: "Twice-weekly allowance"
+  };
+  handleAddFood(wineEntry);
+};
   const handleQuickWine = () => {
     const wineEntry = {
       id: Date.now(),
