@@ -448,7 +448,42 @@ export default function App() {
                   accent={remaining >= 0 ? colors.teal : colors.rust}
                 />
               </div>
-              <ProgressBar consumed={consumed} target={target} />
+              <ProgressBar consumed={consumed} target={target} />{/* DAILY & WEEKLY NET BALANCE DISPLAY */}
+<div style={{
+  display: 'flex', 
+  gap: '12px', 
+  marginTop: '12px', 
+  padding: '12px', 
+  backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.1)'
+}}>
+  {/* Daily Net */}
+  <div style={{ flex: 1, textAlign: 'center' }}>
+    <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', tracking: '0.05em' }}>Daily Net</div>
+    <div style={{ 
+      fontSize: '16px', 
+      fontWeight: 'bold', 
+      color: dailyNetBalance <= 0 ? '#34d399' : '#f87171',
+      marginTop: '4px'
+    }}>
+      {dailyNetBalance <= 0 ? `${dailyNetBalance} kcal` : `+${dailyNetBalance} kcal`}
+    </div>
+  </div>
+
+  {/* Weekly Net */}
+  <div style={{ flex: 1, textAlign: 'center', borderLeft: '1px solid rgba(255, 255, 255, 0.1)' }}>
+    <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', tracking: '0.05em' }}>Weekly Net</div>
+    <div style={{ 
+      fontSize: '16px', 
+      fontWeight: 'bold', 
+      color: weeklyNetBalance <= 0 ? '#34d399' : '#f87171',
+      marginTop: '4px'
+    }}>
+      {weeklyNetBalance <= 0 ? `${weeklyNetBalance} kcal` : `+${weeklyNetBalance} kcal`}
+    </div>
+  </div>
+</div>
               <div style={styles.metaRow}>
                 <span style={styles.metaText}>
                   <Flame size={13} style={{ verticalAlign: -2, marginRight: 4 }} />
