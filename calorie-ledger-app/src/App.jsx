@@ -395,7 +395,14 @@ export default function App() {
 
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
   const todaySleep = sleepLog.find((s) => s.date === today)?.hours;
-const handleQuickWine = () => {
+// --- Daily & Weekly Net Balance ---
+  const totalBurn = fitData?.calories ? fitData.calories : (tdee || 2000); 
+  const dailyNetBalance = consumed - totalBurn; 
+
+  const weeklyConsumed = entries.reduce((sum, item) => sum + (item.calories || 0), 0);
+  const weeklyBurn = totalBurn * 7; 
+  const weeklyNetBalance = weeklyConsumed - weeklyBurn;
+  const handleQuickWine = () => {
     const wineEntry = {
       id: Date.now(),
       date: today,
