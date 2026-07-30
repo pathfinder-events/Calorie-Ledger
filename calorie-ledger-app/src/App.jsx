@@ -395,7 +395,18 @@ export default function App() {
 
   const chartData = weightLog.map((w) => ({ date: w.date.slice(5), weight: w.weight }));
   const todaySleep = sleepLog.find((s) => s.date === today)?.hours;
-
+const handleQuickWine = () => {
+    const wineEntry = {
+      id: Date.now(),
+      date: today,
+      time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }),
+      name: "Red Wine (2 glasses, 10 oz)",
+      calories: 245,
+      confidence: "high",
+      note: "Twice-weekly allowance"
+    };
+    handleAddFood(wineEntry);
+  };
   return (
     <div style={styles.page}>
       <div style={styles.wrap}>
