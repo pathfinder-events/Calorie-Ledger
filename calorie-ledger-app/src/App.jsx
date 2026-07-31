@@ -532,23 +532,7 @@ export default function App() {
             </section>
 
             <section style={styles.scanSection}>
-              <button 
-  type="button"
-  onClick={handleQuickWine}
-  style={{
-    padding: '10px 16px',
-    backgroundColor: '#722F37',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    marginBottom: '12px',
-    width: '100%'
-  }}
->
-  🍷 Quick Log: 2 Glasses Red Wine (245 kcal)
-</button>
+             
               <input
                 ref={fileInputRef}
                 type="file"
